@@ -730,6 +730,7 @@
                 puzzle_text: rawText,
                 category: String(cat).toUpperCase(),
                 revealed_chars: "",
+                pending_positions: "",
                 marked_positions: "",
                 revealed_positions: "",
                 board_layout: JSON.stringify(layout),
@@ -835,11 +836,12 @@
                     await new Promise(r => setTimeout(r, 1200));
                 }
             }
+            await db.from('wheel_game').update({ pending_positions: '' }).eq('id', 1);
         }
 
         async function quickStart() {
             usedChars = [];
-            await db.from('wheel_game').update({ revealed_chars: "" }).eq('id', 1);
+            await db.from('wheel_game').update({ revealed_chars: "", pending_positions: "" }).eq('id', 1);
             quickResume();
         }
 
@@ -908,13 +910,14 @@
                     }
                 }
             }
-            fillPositionsToController(foundPositions);
+            void fillPositionsToController(foundPositions);
         }
 
         async function revealAll() {
             usedChars = [...VIETNAMESE_ALPHABET];
             await db.from('wheel_game').update({
                 revealed_chars: usedChars.join(','),
+                pending_positions: "",
                 is_full_reveal: true // Bật trạng thái hiện dấu
             }).eq('id', 1);
             renderKeyboard();
@@ -924,6 +927,7 @@
             quickStop();
             await db.from('wheel_game').update({
                 puzzle_text: "", category: "", revealed_chars: "",
+                pending_positions: "",
                 marked_positions: "", revealed_positions: "",
                 board_layout: "[]", is_full_reveal: false
             }).eq('id', 1);
@@ -981,6 +985,11 @@
 
                 usedChars.push(char);
                 renderKeyboard();
+
+                await db.from('wheel_game').update({
+                    revealed_chars: usedChars.join(','),
+                    pending_positions: positions.length > 0 ? positions.join(',') : ''
+                }).eq('id', 1);
             }
         }
 
@@ -1077,35 +1086,31 @@
             }
 
             if (foundPositions.length > 0) {
-                fillPositionsToController(foundPositions);
-            } else {
+                void fillPositionsToController(foundPositions);
             }
         }
 
-        function fillPositionsToController(positions) {
+        async function fillPositionsToController(positions) {
             if (positions.length === 0) {
+                await db.from('wheel_game').update({ pending_positions: '' }).eq('id', 1);
                 return;
             }
 
-            // 1. Sắp xếp vị trí từ nhỏ đến lớn
             positions.sort((a, b) => a - b);
 
-            // 2. Cập nhật số lượng ô input
             const numPosInput = document.getElementById('numPos');
             numPosInput.value = positions.length;
-
-            // 3. Kích hoạt hàm tạo ô input (hàm có sẵn trong file của bạn)
             generatePosInputs();
 
-            // 4. Đợi một nhịp nhỏ để DOM cập nhật rồi điền giá trị
-            setTimeout(() => {
-                const posItems = document.querySelectorAll('.pos-item');
-                positions.forEach((p, idx) => {
-                    if (posItems[idx]) {
-                        posItems[idx].value = p;
-                    }
-                });
-            }, 50);
+            await new Promise(r => setTimeout(r, 50));
+            const posItems = document.querySelectorAll('.pos-item');
+            positions.forEach((p, idx) => {
+                if (posItems[idx]) posItems[idx].value = p;
+            });
+
+            await db.from('wheel_game').update({
+                pending_positions: positions.join(',')
+            }).eq('id', 1);
         }
 
         function removeVietnameseTones(str) {
