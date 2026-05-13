@@ -67,7 +67,6 @@
 
         #puzzle-main-container {
             border: 24px solid var(--border-color);
-            /* Tăng chiều cao/độ dày viền to lên */
             border-radius: 30px;
             transition: all 0.5s ease;
             box-shadow: 0 0 30px rgba(128, 0, 128, 0.6);
@@ -97,16 +96,13 @@
 
         .cell {
             width: 60px;
-            /* Tăng kích thước chiều rộng ô */
             height: 80px;
-            /* Tăng kích thước chiều cao ô giúp bảng to lớn hơn */
             background: #004d00;
             border-radius: 6px;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 50px;
-            /* Cỡ chữ to lên tương ứng */
             color: transparent;
             user-select: none;
             transition: background 0.3s;
@@ -149,7 +145,6 @@
             letter-spacing: 1px;
         }
 
-        /* Bảng điểm thiết kế Host xem song song */
         .host-score-section {
             display: flex;
             flex-direction: column;
@@ -215,7 +210,6 @@
             margin-bottom: 2px;
         }
 
-        /* Định dạng màu nền và màu chữ cụ thể cho từng ô điểm */
         .red .score-sub-box {
             background: #ff0000;
             color: #fff;
@@ -243,7 +237,6 @@
             color: #fff;
         }
 
-        /* Bàn phím trạng thái ký tự (Read-only) */
         .keyboard-status {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -258,9 +251,7 @@
             font-size: 1.1rem;
             background: #141414;
             color: var(--neon);
-            /* Chuyển chữ mặc định sang màu Green */
             border: 2px solid var(--neon);
-            /* Chuyển viền mặc định sang màu Green */
             text-align: center;
             border-radius: 4px;
             user-select: none;
@@ -268,14 +259,12 @@
             transition: all 0.2s ease;
         }
 
-        /* Khi chữ cái đã đoán/ẩn từ bên controller -> Ẩn hoàn toàn khỏi bàn phím Host */
         .key-view.used {
             visibility: hidden;
             opacity: 0;
             pointer-events: none;
         }
 
-        /* Mục xem ô vị trí đang đánh dấu */
         .pos-view-panel {
             background: #1a1a1a;
             padding: 12px;
@@ -318,7 +307,6 @@
     </div>
 
     <div class="right-col">
-
         <div>
             <h3 class="panel-title">BẢNG ĐIỂM</h3>
             <div class="host-score-section">
@@ -359,11 +347,9 @@
                 <label style="font-size: 0.8rem; color: #aaa;">Số lượng ô đang chọn:</label>
                 <input type="text" id="hostNumPos" readonly
                     style="width: 50px; padding: 5px; text-align: center; background:#000; color:#fff; border:1px solid #555; margin-left: 10px;">
-
                 <div id="hostPosContainer" class="pos-grid-display"></div>
             </div>
         </div>
-
     </div>
 
     <script>
@@ -398,7 +384,6 @@
             return [];
         }
 
-        // Tối ưu hàm bóc tách dữ liệu linh hoạt cho cả dạng mảng (Array) và chuỗi (String) từ Controller gửi lên
         function parsePosList(val) {
             if (val == null || val === '') return [];
             if (Array.isArray(val)) {
@@ -413,6 +398,7 @@
             return [];
         }
 
+        // Đổi tọa độ hàng cột sang vị trí ID ô số (1-52)
         function rcToPosition(r, c) {
             if (r === 0) return (c >= 1 && c <= 12) ? c : null;
             if (r === 1) return (c >= 0 && c <= 13) ? 13 + c : null;
@@ -481,46 +467,23 @@
                 key.className = 'key-view';
                 key.innerText = char;
 
-                // Nếu chữ cái nằm trong danh sách đã đoán, thêm class 'used' để CSS ẩn đi
                 if (usedChars.includes(char)) {
                     key.classList.add('used');
                 }
-
                 container.appendChild(key);
-            });
-        }
-
-        function updateMarkedPositionsView(markedPositions) {
-            const container = document.getElementById('hostPosContainer');
-            const numInput = document.getElementById('hostNumPos');
-            container.innerHTML = '';
-
-            if (!markedPositions || markedPositions.length === 0) {
-                numInput.value = "0";
-                return;
-            }
-
-            numInput.value = markedPositions.length;
-            markedPositions.forEach(pos => {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = pos;
-                input.readOnly = true;
-                container.appendChild(input);
             });
         }
 
         function updateHostUI(newData) {
             if (!newData) return;
 
-            // --- 1. CẬP NHẬT CACHE DỮ LIỆU (Giữ logic gốc) ---
+            // --- 1. CẬP NHẬT CACHE DỮ LIỆU ---
             if (newData.puzzle_text !== undefined) boardStateCache.puzzle_text = newData.puzzle_text;
             if (newData.category !== undefined) boardStateCache.category = newData.category;
             if (newData.round_name !== undefined) boardStateCache.round_name = newData.round_name;
             if (newData.board_layout !== undefined) boardStateCache.board_layout = parseBoardLayout(newData.board_layout);
 
             if (newData.revealed_chars !== undefined) {
-                // Đồng bộ chữ cái đã đoán để ẩn trên bàn phím Host
                 boardStateCache.revealed_chars = newData.revealed_chars ? newData.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [];
             }
 
@@ -554,7 +517,7 @@
             // --- 4. ĐỒNG BỘ BÀN PHÍM (Ẩn chữ cái đã đoán) ---
             renderKeyboardStatus(boardStateCache.revealed_chars);
 
-            // --- 5. ĐỒNG BỘ SỐ Ô VÀ VỊ TRÍ: ưu tiên pending_positions (preview ngay khi controller bấm chữ cái), sau đó mới tới marked_positions ---
+            // --- 5. ĐỒNG BỘ SỐ Ô VÀ VỊ TRÍ ---
             const pendingList = boardStateCache.pending_positions || [];
             const markedList = boardStateCache.marked_positions || [];
             const displayPositions = pendingList.length > 0 ? pendingList : markedList;
@@ -576,7 +539,7 @@
                 });
             }
 
-            // --- 6. KẾT XUẤT PUZZLEBOARD LIVE (ô cam chỉ theo đã đánh dấu thật trên DB) ---
+            // --- 6. KẾT XUẤT PUZZLEBOARD LIVE (Đã điều chỉnh logic Hiện toàn bộ ô chữ kèm dấu) ---
             const markedSet = new Set(markedList);
             const revealedPosSet = new Set(boardStateCache.revealed_positions);
 
@@ -596,11 +559,12 @@
                         const ch = String(char).trim().toUpperCase();
                         const pos = rcToPosition(rIdx, cIdx);
 
-                        if (pos != null && revealedPosSet.has(pos)) {
+                        // Nếu kích hoạt nút hiện toàn bộ (is_full_reveal) hoặc ô này nằm trong tập các ô đã lật mở trước đó
+                        if (boardStateCache.is_full_reveal || (pos != null && revealedPosSet.has(pos))) {
                             target.innerText = boardStateCache.is_full_reveal ? ch : removeToneMarks(ch);
                             target.classList.add('revealed');
                         } else if (pos != null && markedSet.has(pos)) {
-                            target.classList.add('marked'); // Hiện ô màu cam khi Controller chọn chữ
+                            target.classList.add('marked');
                         }
                     });
                 });
