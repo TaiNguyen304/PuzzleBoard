@@ -217,7 +217,7 @@
 
         /* Định dạng màu nền và màu chữ cụ thể cho từng ô điểm */
         .red .score-sub-box {
-            background: #cc0000;
+            background: #ff0000;
             color: #fff;
         }
 
@@ -226,7 +226,7 @@
         }
 
         .yellow .score-sub-box {
-            background: #cccc00;
+            background: #ffff00;
             color: #000;
         }
 
@@ -235,7 +235,7 @@
         }
 
         .blue .score-sub-box {
-            background: #0000cc;
+            background: #0000ff;
             color: #fff;
         }
 
@@ -320,10 +320,10 @@
     <div class="right-col">
 
         <div>
-            <h3 class="panel-title">📊 BẢNG ĐIỂM LIVE (VÒNG & TỔNG)</h3>
+            <h3 class="panel-title">BẢNG ĐIỂM</h3>
             <div class="host-score-section">
                 <div class="player-score-card red">
-                    <p class="player-name">🔴 NGƯỜI CHƠI ĐỎ</p>
+                    <p class="player-name">🔴 NC ĐỎ</p>
                     <div class="score-grid">
                         <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-red-round">0</span></div>
                         <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-red-total">0</span></div>
@@ -331,7 +331,7 @@
                 </div>
 
                 <div class="player-score-card yellow">
-                    <p class="player-name">🟡 NGƯỜI CHƠI VÀNG</p>
+                    <p class="player-name">🟡 NC VÀNG</p>
                     <div class="score-grid">
                         <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-yellow-round">0</span></div>
                         <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-yellow-total">0</span></div>
@@ -339,7 +339,7 @@
                 </div>
 
                 <div class="player-score-card blue">
-                    <p class="player-name">🔵 NGƯỜI CHƠI XANH</p>
+                    <p class="player-name">🔵 NC XANH</p>
                     <div class="score-grid">
                         <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-blue-round">0</span></div>
                         <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-blue-total">0</span></div>
@@ -349,12 +349,12 @@
         </div>
 
         <div>
-            <h3 class="panel-title">🔤 TRẠNG THÁI CHỮ CÁI ĐÃ ĐOÁN</h3>
+            <h3 class="panel-title">TRẠNG THÁI CHỮ CÁI ĐÃ ĐOÁN</h3>
             <div id="keyboard-view" class="keyboard-status"></div>
         </div>
 
         <div>
-            <h3 class="panel-title">🎯 Ô ĐANG ĐƯỢC CHỌN (CONTROLLER)</h3>
+            <h3 class="panel-title">Ô ĐANG ĐƯỢC CHỌN</h3>
             <div class="pos-view-panel">
                 <label style="font-size: 0.8rem; color: #aaa;">Số lượng ô đang chọn:</label>
                 <input type="text" id="hostNumPos" readonly
