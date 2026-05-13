@@ -153,7 +153,6 @@
 
         #puzzle-main-container {
             border: 12px solid rgb(128, 0, 128);
-            /* Màu mặc định */
             border-radius: 25px;
             transition: all 0.5s ease;
             box-shadow: 0 0 20px rgba(128, 0, 128, 0.5);
@@ -226,8 +225,6 @@
                 for (let cIdx = 0; cIdx < count; cIdx++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
-                    // Tính toán ID để khớp với mảng 14 cột từ Controller
-                    // Hàng 12 ô thì cột thực tế trong mảng 14 là từ index 1 đến 12
                     let actualColIndex = (rIdx === 0 || rIdx === 3) ? cIdx + 1 : cIdx;
                     cell.id = `cell-${rIdx}-${actualColIndex}`;
                     row.appendChild(cell);
@@ -238,7 +235,6 @@
 
         function removeToneMarks(str) {
             if (!str) return "";
-            // NFD tách các ký tự tổ hợp, sau đó xóa các ký tự dấu cụ thể
             return str.normalize("NFD").replace(/[\u0301\u0300\u0309\u0303\u0323]/g, "").normalize("NFC");
         }
 
@@ -252,7 +248,7 @@
                 revealedList: Array.isArray(revealed) ? revealed : [],
                 markedPositions: Array.isArray(markedPositions) ? markedPositions : [],
                 revealedPositions: Array.isArray(revealedPositions) ? revealedPositions : [],
-                isFullReveal: isFullReveal // Lưu trạng thái có phải là mở hết hay không
+                isFullReveal: isFullReveal
             };
 
             const markedSet = new Set(boardStateCache.markedPositions);
@@ -279,23 +275,24 @@
                     target.dataset.char = ch;
 
                     const pos = rcToPosition(rIdx, cIdx);
-
-                    // normalizedChar dùng để so sánh khi người chơi đoán chữ cái (không dấu)
-                    const normalizedChar = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-                    const revealedByLetter = boardStateCache.revealedList.includes(normalizedChar);
                     const revealedByPos = pos != null && revealedPosSet.has(pos);
 
-                    if (revealedByPos || revealedByLetter) {
-                        // LOGIC MỚI: 
-                        // Nếu là trường hợp mở toàn bộ (isFullReveal = true) -> Hiện nguyên gốc ch
-                        // Nếu chỉ là lật ô/lật chữ bình thường -> Xóa dấu thanh trước khi hiện
+                    // CHỈ lật mở khi vị trí thuộc danh sách đã mở (Mở lần 2) HOẶC khi mở toàn bộ bảng
+                    if (revealedByPos || isFullReveal) {
                         if (isFullReveal) {
                             target.innerText = ch;
                         } else {
                             target.innerText = removeToneMarks(ch);
                         }
                         target.classList.add('revealed');
-                    } else if (pos != null && markedSet.has(pos)) {
+
+                        // Nếu đồng thời nằm trong danh sách marked, thêm lại class marked để kích hoạt animation lật ô chữ (flipBox)
+                        if (pos != null && markedSet.has(pos)) {
+                            target.classList.add('marked');
+                        }
+                    } 
+                    // CHỈ đánh dấu màu cam khi thuộc danh sách marked (Mở lần 1) và chưa được mở chữ công khai
+                    else if (pos != null && markedSet.has(pos)) {
                         target.classList.add('marked');
                     }
                 });
@@ -305,18 +302,14 @@
         function formatScore(num) {
             return (num || 0).toLocaleString('vi-VN');
         }
+
         async function init() {
             createBoard();
 
-            // Hàm phụ trợ để định dạng và cập nhật điểm số
             const updateScores = (data) => {
-                // Kiểm tra chế độ hiển thị (mặc định là 'round' nếu chưa có)
                 const mode = data.score_display_mode || 'round';
-
-                // Hàm định dạng số có dấu chấm ngăn cách (ví dụ: 1.000.000)
                 const format = (num) => (num || 0).toLocaleString('vi-VN');
 
-                // Cập nhật text cho 3 ô điểm
                 const redEl = document.getElementById('score-red');
                 const yellowEl = document.getElementById('score-yellow');
                 const blueEl = document.getElementById('score-blue');
@@ -326,13 +319,14 @@
                 if (blueEl) blueEl.innerText = format(data[`score_blue_${mode}`]);
             };
 
-            // 2. Lấy dữ liệu ban đầu khi vừa load trang
+            // Lấy dữ liệu ban đầu khi vừa load trang
             const { data } = await db.from('wheel_game').select('*').eq('id', 1).maybeSingle();
             if (data) {
                 const revealed = data.revealed_chars ? data.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [];
                 const layoutData = parseBoardLayout(data.board_layout);
                 const markedPositions = parsePosList(data.marked_positions);
                 const revealedPositions = parsePosList(data.revealed_positions);
+                const isFull = data.is_full_reveal || false;
 
                 updateBoard(
                     data.puzzle_text,
@@ -340,18 +334,18 @@
                     data.category,
                     layoutData,
                     markedPositions,
-                    revealedPositions
+                    revealedPositions,
+                    isFull
                 );
 
                 if (data.border_color) {
                     applyBorderColor(data.border_color);
                 }
 
-                // Cập nhật điểm số lúc khởi tạo
                 updateScores(data);
             }
 
-            // 3. Lắng nghe thay đổi thời gian thực từ Supabase
+            // Lắng nghe thay đổi thời gian thực từ Supabase
             db.channel('any').on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
@@ -359,17 +353,14 @@
             }, payload => {
                 const newData = payload.new;
 
-                // 1. Kiểm tra và lấy trạng thái hiển thị dấu (is_full_reveal)
-                // Nếu trong payload không có is_full_reveal thì lấy từ cache cũ
                 const isFull = newData.is_full_reveal !== undefined
                     ? newData.is_full_reveal
                     : (boardStateCache.isFullReveal || false);
 
-                // 2. Kiểm tra nếu có bất kỳ thay đổi nào liên quan đến bảng chữ
                 if (newData.puzzle_text !== undefined || newData.board_layout !== undefined
                     || newData.revealed_chars !== undefined || newData.marked_positions !== undefined
                     || newData.revealed_positions !== undefined || newData.category !== undefined
-                    || newData.is_full_reveal !== undefined) { // Thêm điều kiện này để cập nhật khi chỉ nhấn nút hiện dấu
+                    || newData.is_full_reveal !== undefined) {
 
                     const puzzle = newData.puzzle_text !== undefined ? (newData.puzzle_text || "") : boardStateCache.puzzle_text;
 
@@ -391,7 +382,6 @@
                         ? parsePosList(newData.revealed_positions)
                         : boardStateCache.revealedPositions;
 
-                    // Gọi hàm updateBoard với tham số isFull ở cuối
                     updateBoard(
                         puzzle,
                         revealed,
@@ -403,18 +393,15 @@
                     );
                 }
 
-                // 3. Cập nhật màu viền
                 if (newData.border_color) {
                     applyBorderColor(newData.border_color);
                 }
 
-                // 4. Cập nhật điểm số
                 updateScores(newData);
 
             }).subscribe();
         }
 
-        // Hàm phụ trợ để đổi màu viền và hiệu ứng bóng đổ
         function applyBorderColor(color) {
             const container = document.getElementById('puzzle-main-container');
             const board = document.getElementById('board');
@@ -424,15 +411,11 @@
                 container.style.boxShadow = `0 0 40px ${color}`;
             }
 
-            // đổi viền after
             document.documentElement.style.setProperty('--border-color', color);
 
-            // đổi glow chính của board
             if (board) {
                 board.style.boxShadow = `0 0 60px ${color}`;
             }
-
-            console.log("Đã đổi màu:", color);
         }
 
         function handleDataUpdate(data) {
@@ -440,17 +423,17 @@
                 try {
                     const revealed = data.revealed_chars ? data.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [];
                     const layout = typeof data.board_layout === 'string' ? JSON.parse(data.board_layout) : data.board_layout;
+                    const isFull = data.is_full_reveal || false;
                     updateBoard(
                         data.puzzle_text,
                         revealed,
                         data.category,
                         layout,
                         parsePosList(data.marked_positions),
-                        parsePosList(data.revealed_positions)
+                        parsePosList(data.revealed_positions),
+                        isFull
                     );
-                } catch (e) {
-                    // Không sử dụng console.log theo yêu cầu
-                }
+                } catch (e) {}
             }
 
             if (data.border_color) applyBorderColor(data.border_color);
@@ -461,15 +444,12 @@
             document.getElementById('score-blue').innerText = formatScore(data[`score_blue_${mode}`]);
         }
 
-        // Khởi tạo bảng ngay khi load
         createBoard();
         init();
 
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
-            // Chặn F12
             if (e.keyCode === 123) e.preventDefault();
-            // Chặn Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
             if (e.ctrlKey && (e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.keyCode === 85)) {
                 e.preventDefault();
             }
