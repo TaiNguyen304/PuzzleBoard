@@ -493,29 +493,6 @@
             renderKeyboard();
         };
 
-        // Hàm hỗ trợ dịch layout ma trận thành chuỗi ký tự có khoảng cách chính xác dựa trên các ô trống
-        function getPuzzleStringWithSpaces(layout) {
-            if (!layout || !Array.isArray(layout)) return "-";
-            let words = [];
-            layout.forEach(row => {
-                let currentWord = "";
-                row.forEach(char => {
-                    if (char && char.trim() !== "") {
-                        currentWord += char;
-                    } else {
-                        if (currentWord !== "") {
-                            words.push(currentWord);
-                            currentWord = "";
-                        }
-                    }
-                });
-                if (currentWord !== "") {
-                    words.push(currentWord);
-                }
-            });
-            return words.join(" ") || "-";
-        }
-
         async function loadCurrentState() {
             const { data, error } = await db.from('wheel_game').select('*').eq('id', 1).maybeSingle();
             if (data) {
@@ -531,16 +508,12 @@
                 usedChars = data.revealed_chars ? data.revealed_chars.split(',') : [];
                 currentPuzzleRaw = data.puzzle_text || "";
 
+                // Khôi phục UI trạng thái
+                document.getElementById('st-cat').innerText = data.category || "-";
+                document.getElementById('st-puz').innerText = currentPuzzleRaw || "-";
+
                 if (data.board_layout) {
                     try { currentLayout = JSON.parse(data.board_layout); } catch (e) { currentLayout = null; }
-                }
-
-                // Khôi phục UI trạng thái (Sửa đổi hiển thị ô chữ có khoảng cách)
-                document.getElementById('st-cat').innerText = data.category || "-";
-                if (currentLayout) {
-                    document.getElementById('st-puz').innerText = getPuzzleStringWithSpaces(currentLayout);
-                } else {
-                    document.getElementById('st-puz').innerText = currentPuzzleRaw || "-";
                 }
 
                 updateScoreUI();
@@ -712,8 +685,29 @@
 
         async function sendToBoard(cat, layout) {
             currentLayout = layout;
-            let rawText = "";
-            layout.forEach(row => row.forEach(char => { if (char) rawText += char; }));
+            
+            // ĐÃ SỬA: Logic xây dựng chuỗi văn bản ô chữ để không bị dính liền chữ
+            // Thêm dấu cách giữa các từ trong cùng một hàng và dấu " / " để phân tách giữa các hàng
+            let rawLines = [];
+            layout.forEach(row => {
+                let rowText = "";
+                row.forEach(char => {
+                    if (char && char.trim() !== "") {
+                        rowText += char;
+                    } else {
+                        // Nếu trước đó đã có chữ và ô hiện tại là ô trống, tự động thêm khoảng trắng cách từ
+                        if (rowText && !rowText.endsWith(" ")) {
+                            rowText += " ";
+                        }
+                    }
+                });
+                rowText = rowText.trim();
+                if (rowText) {
+                    rawLines.push(rowText);
+                }
+            });
+            let rawText = rawLines.join(" / ");
+            
             currentPuzzleRaw = rawText;
             usedChars = [];
 
@@ -730,8 +724,7 @@
             if (!error) {
                 document.getElementById('st-round').innerText = selectedRoundName;
                 document.getElementById('st-cat').innerText = cat;
-                // Cập nhật hiển thị trạng thái ô chữ có dấu cách trực quan
-                document.getElementById('st-puz').innerText = getPuzzleStringWithSpaces(layout);
+                document.getElementById('st-puz').innerText = rawText;
                 renderKeyboard();
             }
         }
