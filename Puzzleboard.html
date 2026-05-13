@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Puzzleboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --neon-green: #39ff14;
+            --vibrant-pink: #ff00cc;
+            --deep-bg: #001a00;
+            --border-color: rgb(128, 0, 128);
+        }
+
+        /* Font-weight bold cho toàn bộ văn bản trên bảng */
+        * {
+            font-weight: bold !important;
+        }
+
+        body {
+            background-color: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        #score-container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-bottom: 20px;
+        }
+
+        .score-box {
+            width: 220px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 3px solid #fff;
+        }
+
+        .score-box.red {
+            background: #ff0000;
+            color: #fff;
+        }
+
+        .score-box.yellow {
+            background: #ffff00;
+            color: #000;
+        }
+
+        .score-box.blue {
+            background: #0000ff;
+            color: #fff;
+        }
+
+        #category-display {
+            color: yellow;
+            font-size: 3rem;
+            margin-bottom: 25px;
+            text-shadow: 0 0 15px rgba(255, 255, 0, 0.8);
+            text-transform: uppercase;
+            user-select: none;
+        }
+
+        #board {
+            display: grid;
+            grid-template-rows: repeat(4, 1fr);
+            gap: 12px;
+            background: var(--deep-bg);
+            padding: 30px;
+            box-shadow: 0 0 60px rgb(128, 0, 128);
+            transition: all 0.5s ease;
+            border-radius: 20px;
+            position: relative;
+        }
+
+        #board::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            border: 3px solid var(--border-color);
+            border-radius: 24px;
+            pointer-events: none;
+        }
+
+        .row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            width: fit-content;
+            margin: 0 auto;
+            user-select: none;
+        }
+
+        .cell {
+            width: 65px;
+            height: 90px;
+            background: #004d00;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 60px;
+            perspective: 1000px;
+            color: transparent;
+            user-select: none;
+        }
+
+        .cell.active {
+            background: #fff;
+            box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.7);
+        }
+
+        .cell.revealed {
+            background: var(--neon-green);
+            color: #000;
+        }
+
+        .cell.marked {
+            background: orange;
+            color: transparent;
+        }
+
+        .cell.marked.revealed {
+            animation: flipBox 0.6s forwards;
+        }
+
+        @keyframes flipBox {
+            0% {
+                transform: rotateY(0deg);
+            }
+
+            100% {
+                transform: rotateY(360deg);
+            }
+        }
+
+        #puzzle-main-container {
+            border: 12px solid rgb(128, 0, 128);
+            /* Màu mặc định */
+            border-radius: 25px;
+            transition: all 0.5s ease;
+            box-shadow: 0 0 20px rgba(128, 0, 128, 0.5);
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="score-container">
+        <div class="score-box red" id="score-red">0</div>
+        <div class="score-box yellow" id="score-yellow">0</div>
+        <div class="score-box blue" id="score-blue">0</div>
+    </div>
+    <div id="category-display">- CHƯA CÓ CHỦ ĐỀ -</div>
+    <div id="puzzle-main-container">
+        <div id="board"></div>
+    </div>
+
+    <script>
+        var SUPABASE_URL = 'https://tfdgtdderkaergijhucb.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._BOLe4xH5ZuhfXfsdS63eY9N12wyomq58GG0toi1aIE';
+        var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentLayout = [];
+        let boardStateCache = {
+            puzzle_text: '',
+            category: '',
+            boardLayout: [],
+            revealedList: [],
+            markedPositions: [],
+            revealedPositions: []
+        };
+
+        function parseBoardLayout(val) {
+            if (val == null || val === '') return [];
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string') {
+                try {
+                    return JSON.parse(val);
+                } catch {
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        function parsePosList(str) {
+            if (!str || typeof str !== 'string') return [];
+            return str.split(',').map(x => parseInt(x.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= 52);
+        }
+
+        function rcToPosition(r, c) {
+            if (r === 0) return (c >= 1 && c <= 12) ? c : null;
+            if (r === 1) return (c >= 0 && c <= 13) ? 13 + c : null;
+            if (r === 2) return (c >= 0 && c <= 13) ? 27 + c : null;
+            if (r === 3) return (c >= 1 && c <= 12) ? 40 + c : null;
+            return null;
+        }
+
+        // Tạo bảng 52 ô cố định (12-14-14-12)
+        function createBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            const config = [12, 14, 14, 12];
+
+            config.forEach((count, rIdx) => {
+                const row = document.createElement('div');
+                row.className = 'row';
+                for (let cIdx = 0; cIdx < count; cIdx++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    // Tính toán ID để khớp với mảng 14 cột từ Controller
+                    // Hàng 12 ô thì cột thực tế trong mảng 14 là từ index 1 đến 12
+                    let actualColIndex = (rIdx === 0 || rIdx === 3) ? cIdx + 1 : cIdx;
+                    cell.id = `cell-${rIdx}-${actualColIndex}`;
+                    row.appendChild(cell);
+                }
+                board.appendChild(row);
+            });
+        }
+
+        function removeToneMarks(str) {
+            if (!str) return "";
+            // NFD tách các ký tự tổ hợp, sau đó xóa các ký tự dấu cụ thể
+            return str.normalize("NFD").replace(/[\u0301\u0300\u0309\u0303\u0323]/g, "").normalize("NFC");
+        }
+
+        function updateBoard(puzzle, revealed, category, boardLayout = [], markedPositions = [], revealedPositions = [], isFullReveal = false) {
+            document.getElementById('category-display').innerText = category || "";
+
+            boardStateCache = {
+                puzzle_text: puzzle || '',
+                category: category || '',
+                boardLayout: Array.isArray(boardLayout) ? boardLayout : [],
+                revealedList: Array.isArray(revealed) ? revealed : [],
+                markedPositions: Array.isArray(markedPositions) ? markedPositions : [],
+                revealedPositions: Array.isArray(revealedPositions) ? revealedPositions : [],
+                isFullReveal: isFullReveal // Lưu trạng thái có phải là mở hết hay không
+            };
+
+            const markedSet = new Set(boardStateCache.markedPositions);
+            const revealedPosSet = new Set(boardStateCache.revealedPositions);
+
+            document.querySelectorAll('.cell').forEach(c => {
+                c.className = 'cell';
+                c.innerText = '';
+                delete c.dataset.char;
+            });
+
+            const layout = boardStateCache.boardLayout;
+            if (!Array.isArray(layout)) return;
+
+            layout.forEach((rowChars, rIdx) => {
+                if (!Array.isArray(rowChars)) return;
+
+                rowChars.forEach((char, cIdx) => {
+                    const target = document.getElementById(`cell-${rIdx}-${cIdx}`);
+                    if (!target || !char || String(char).trim() === "") return;
+
+                    target.classList.add('active');
+                    const ch = String(char).trim().toUpperCase();
+                    target.dataset.char = ch;
+
+                    const pos = rcToPosition(rIdx, cIdx);
+
+                    // normalizedChar dùng để so sánh khi người chơi đoán chữ cái (không dấu)
+                    const normalizedChar = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+                    const revealedByLetter = boardStateCache.revealedList.includes(normalizedChar);
+                    const revealedByPos = pos != null && revealedPosSet.has(pos);
+
+                    if (revealedByPos || revealedByLetter) {
+                        // LOGIC MỚI: 
+                        // Nếu là trường hợp mở toàn bộ (isFullReveal = true) -> Hiện nguyên gốc ch
+                        // Nếu chỉ là lật ô/lật chữ bình thường -> Xóa dấu thanh trước khi hiện
+                        if (isFullReveal) {
+                            target.innerText = ch;
+                        } else {
+                            target.innerText = removeToneMarks(ch);
+                        }
+                        target.classList.add('revealed');
+                    } else if (pos != null && markedSet.has(pos)) {
+                        target.classList.add('marked');
+                    }
+                });
+            });
+        }
+
+        function formatScore(num) {
+            return (num || 0).toLocaleString('vi-VN');
+        }
+        async function init() {
+            createBoard();
+
+            // Hàm phụ trợ để định dạng và cập nhật điểm số
+            const updateScores = (data) => {
+                // Kiểm tra chế độ hiển thị (mặc định là 'round' nếu chưa có)
+                const mode = data.score_display_mode || 'round';
+
+                // Hàm định dạng số có dấu chấm ngăn cách (ví dụ: 1.000.000)
+                const format = (num) => (num || 0).toLocaleString('vi-VN');
+
+                // Cập nhật text cho 3 ô điểm
+                const redEl = document.getElementById('score-red');
+                const yellowEl = document.getElementById('score-yellow');
+                const blueEl = document.getElementById('score-blue');
+
+                if (redEl) redEl.innerText = format(data[`score_red_${mode}`]);
+                if (yellowEl) yellowEl.innerText = format(data[`score_yellow_${mode}`]);
+                if (blueEl) blueEl.innerText = format(data[`score_blue_${mode}`]);
+            };
+
+            // 2. Lấy dữ liệu ban đầu khi vừa load trang
+            const { data } = await db.from('wheel_game').select('*').eq('id', 1).maybeSingle();
+            if (data) {
+                const revealed = data.revealed_chars ? data.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const layoutData = parseBoardLayout(data.board_layout);
+                const markedPositions = parsePosList(data.marked_positions);
+                const revealedPositions = parsePosList(data.revealed_positions);
+
+                updateBoard(
+                    data.puzzle_text,
+                    revealed,
+                    data.category,
+                    layoutData,
+                    markedPositions,
+                    revealedPositions
+                );
+
+                if (data.border_color) {
+                    applyBorderColor(data.border_color);
+                }
+
+                // Cập nhật điểm số lúc khởi tạo
+                updateScores(data);
+            }
+
+            // 3. Lắng nghe thay đổi thời gian thực từ Supabase
+            db.channel('any').on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'wheel_game'
+            }, payload => {
+                const newData = payload.new;
+
+                // 1. Kiểm tra và lấy trạng thái hiển thị dấu (is_full_reveal)
+                // Nếu trong payload không có is_full_reveal thì lấy từ cache cũ
+                const isFull = newData.is_full_reveal !== undefined
+                    ? newData.is_full_reveal
+                    : (boardStateCache.isFullReveal || false);
+
+                // 2. Kiểm tra nếu có bất kỳ thay đổi nào liên quan đến bảng chữ
+                if (newData.puzzle_text !== undefined || newData.board_layout !== undefined
+                    || newData.revealed_chars !== undefined || newData.marked_positions !== undefined
+                    || newData.revealed_positions !== undefined || newData.category !== undefined
+                    || newData.is_full_reveal !== undefined) { // Thêm điều kiện này để cập nhật khi chỉ nhấn nút hiện dấu
+
+                    const puzzle = newData.puzzle_text !== undefined ? (newData.puzzle_text || "") : boardStateCache.puzzle_text;
+
+                    const revealed = newData.revealed_chars !== undefined
+                        ? (newData.revealed_chars ? newData.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [])
+                        : boardStateCache.revealedList;
+
+                    const cat = newData.category !== undefined ? (newData.category || "") : boardStateCache.category;
+
+                    const layoutData = newData.board_layout !== undefined
+                        ? parseBoardLayout(newData.board_layout)
+                        : boardStateCache.boardLayout;
+
+                    const markedPositions = newData.marked_positions !== undefined
+                        ? parsePosList(newData.marked_positions)
+                        : boardStateCache.markedPositions;
+
+                    const revealedPositions = newData.revealed_positions !== undefined
+                        ? parsePosList(newData.revealed_positions)
+                        : boardStateCache.revealedPositions;
+
+                    // Gọi hàm updateBoard với tham số isFull ở cuối
+                    updateBoard(
+                        puzzle,
+                        revealed,
+                        cat,
+                        layoutData,
+                        markedPositions,
+                        revealedPositions,
+                        isFull
+                    );
+                }
+
+                // 3. Cập nhật màu viền
+                if (newData.border_color) {
+                    applyBorderColor(newData.border_color);
+                }
+
+                // 4. Cập nhật điểm số
+                updateScores(newData);
+
+            }).subscribe();
+        }
+
+        // Hàm phụ trợ để đổi màu viền và hiệu ứng bóng đổ
+        function applyBorderColor(color) {
+            const container = document.getElementById('puzzle-main-container');
+            const board = document.getElementById('board');
+
+            if (container) {
+                container.style.border = `12px solid ${color}`;
+                container.style.boxShadow = `0 0 40px ${color}`;
+            }
+
+            // đổi viền after
+            document.documentElement.style.setProperty('--border-color', color);
+
+            // đổi glow chính của board
+            if (board) {
+                board.style.boxShadow = `0 0 60px ${color}`;
+            }
+
+            console.log("Đã đổi màu:", color);
+        }
+
+        function handleDataUpdate(data) {
+            if (data.board_layout) {
+                try {
+                    const revealed = data.revealed_chars ? data.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [];
+                    const layout = typeof data.board_layout === 'string' ? JSON.parse(data.board_layout) : data.board_layout;
+                    updateBoard(
+                        data.puzzle_text,
+                        revealed,
+                        data.category,
+                        layout,
+                        parsePosList(data.marked_positions),
+                        parsePosList(data.revealed_positions)
+                    );
+                } catch (e) {
+                    // Không sử dụng console.log theo yêu cầu
+                }
+            }
+
+            if (data.border_color) applyBorderColor(data.border_color);
+
+            const mode = data.score_display_mode || 'round';
+            document.getElementById('score-red').innerText = formatScore(data[`score_red_${mode}`]);
+            document.getElementById('score-yellow').innerText = formatScore(data[`score_yellow_${mode}`]);
+            document.getElementById('score-blue').innerText = formatScore(data[`score_blue_${mode}`]);
+        }
+
+        // Khởi tạo bảng ngay khi load
+        createBoard();
+        init();
+
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            // Chặn F12
+            if (e.keyCode === 123) e.preventDefault();
+            // Chặn Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (e.ctrlKey && (e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.keyCode === 85)) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+
+</html>

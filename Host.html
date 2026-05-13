@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Host</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --pink: #ff00cc;
+            --neon: #39ff14;
+            --deep-bg: #001a00;
+            --border-color: rgb(128, 0, 128);
+        }
+
+        * {
+            font-weight: bold !important;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* --- CỘT TRÁI: TRẠNG THÁI & PUZZLEBOARD --- */
+        .left-col {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .status-container {
+            background: #141414;
+            padding: 15px 25px;
+            border-radius: 12px;
+            border-left: 5px solid var(--pink);
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .status-item {
+            font-size: 1.1rem;
+        }
+
+        .status-item span {
+            color: var(--neon);
+            font-size: 1.3rem;
+            margin-left: 5px;
+        }
+
+        #st-puz {
+            color: #ffcc00 !important;
+            white-space: pre-wrap;
+        }
+
+        #puzzle-main-container {
+            border: 24px solid var(--border-color); /* Tăng chiều cao/độ dày viền to lên */
+            border-radius: 30px;
+            transition: all 0.5s ease;
+            box-shadow: 0 0 30px rgba(128, 0, 128, 0.6);
+            padding: 12px;
+            background: #000;
+            margin: auto 0;
+        }
+
+        #board {
+            display: grid;
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            background: var(--deep-bg);
+            padding: 24px;
+            transition: all 0.5s ease;
+            border-radius: 20px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            width: fit-content;
+            margin: 0 auto;
+            user-select: none;
+        }
+
+        .cell {
+            width: 60px; /* Tăng kích thước chiều rộng ô */
+            height: 80px; /* Tăng kích thước chiều cao ô giúp bảng to lớn hơn */
+            background: #004d00;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px; /* Cỡ chữ to lên tương ứng */
+            color: transparent;
+            user-select: none;
+            transition: background 0.3s;
+        }
+
+        .cell.active {
+            background: #fff;
+            box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+        }
+
+        .cell.revealed {
+            background: var(--neon);
+            color: #000;
+        }
+
+        .cell.marked {
+            background: orange;
+            color: transparent;
+        }
+
+        /* --- CỘT PHẢI: BẢNG ĐIỂM KÉP & THÔNG TIN --- */
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            background: #111;
+            padding: 15px;
+            border-radius: 12px;
+            border-top: 4px solid var(--pink);
+        }
+
+        .panel-title {
+            margin: 0 0 10px 0;
+            color: var(--pink);
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+            text-transform: uppercase;
+            font-size: 1rem;
+            letter-spacing: 1px;
+        }
+
+        /* Bảng điểm thiết kế Host xem song song */
+        .host-score-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .player-score-card {
+            border-radius: 8px;
+            padding: 10px;
+            border: 2px solid #333;
+        }
+
+        .player-score-card.red { border-color: #ff0000; background: rgba(255, 0, 0, 0.05); }
+        .player-score-card.yellow { border-color: #ffff00; background: rgba(255, 255, 0, 0.05); }
+        .player-score-card.blue { border-color: #008cff; background: rgba(0, 140, 255, 0.05); }
+
+        .player-name {
+            margin: 0 0 5px 0;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        .red .player-name { color: #ff4d4d; }
+        .yellow .player-name { color: #ffff4d; }
+        .blue .player-name { color: #4da6ff; }
+
+        .score-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .score-sub-box {
+            padding: 6px;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 1.1rem;
+        }
+        
+        .score-sub-box label {
+            display: block;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        /* Định dạng màu nền và màu chữ cụ thể cho từng ô điểm */
+        .red .score-sub-box { background: #cc0000; color: #fff; }
+        .red .score-sub-box label { color: #fff; }
+
+        .yellow .score-sub-box { background: #cccc00; color: #000; }
+        .yellow .score-sub-box label { color: #000; }
+
+        .blue .score-sub-box { background: #0000cc; color: #fff; }
+        .blue .score-sub-box label { color: #fff; }
+
+        /* Bàn phím trạng thái ký tự (Read-only) */
+        .keyboard-status {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            background: #000;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        .key-view {
+            padding: 8px 0;
+            font-size: 1.1rem;
+            background: #141414;
+            color: var(--neon); /* Chuyển chữ mặc định sang màu Green */
+            border: 2px solid var(--neon); /* Chuyển viền mặc định sang màu Green */
+            text-align: center;
+            border-radius: 4px;
+            user-select: none;
+            box-shadow: inset 0 0 4px rgba(57, 255, 20, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        /* Khi chữ cái đã đoán/ẩn từ bên controller -> Ẩn hoàn toàn khỏi bàn phím Host */
+        .key-view.used {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Mục xem ô vị trí đang đánh dấu */
+        .pos-view-panel {
+            background: #1a1a1a;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px dashed #444;
+        }
+
+        .pos-grid-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .pos-grid-display input {
+            width: 40px;
+            padding: 6px;
+            text-align: center;
+            background: #000;
+            color: orange;
+            border: 1px solid orange;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="left-col">
+        <div class="status-container">
+            <div class="status-item">VÒNG THI: <span id="st-round">-</span></div>
+            <div class="status-item">CHỦ ĐỀ: <span id="st-cat">-</span></div>
+            <div class="status-item" style="flex: 1;">Ô CHỮ ĐANG GIẢI: <span id="st-puz">-</span></div>
+        </div>
+
+        <div id="puzzle-main-container">
+            <div id="board"></div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        
+        <div>
+            <h3 class="panel-title">📊 BẢNG ĐIỂM LIVE (VÒNG & TỔNG)</h3>
+            <div class="host-score-section">
+                <div class="player-score-card red">
+                    <p class="player-name">🔴 NGƯỜI CHƠI ĐỎ</p>
+                    <div class="score-grid">
+                        <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-red-round">0</span></div>
+                        <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-red-total">0</span></div>
+                    </div>
+                </div>
+
+                <div class="player-score-card yellow">
+                    <p class="player-name">🟡 NGƯỜI CHƠI VÀNG</p>
+                    <div class="score-grid">
+                        <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-yellow-round">0</span></div>
+                        <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-yellow-total">0</span></div>
+                    </div>
+                </div>
+
+                <div class="player-score-card blue">
+                    <p class="player-name">🔵 NGƯỜI CHƠI XANH</p>
+                    <div class="score-grid">
+                        <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-blue-round">0</span></div>
+                        <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-blue-total">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h3 class="panel-title">🔤 TRẠNG THÁI CHỮ CÁI ĐÃ ĐOÁN</h3>
+            <div id="keyboard-view" class="keyboard-status"></div>
+        </div>
+
+        <div>
+            <h3 class="panel-title">🎯 Ô ĐANG ĐƯỢC CHỌN (CONTROLLER)</h3>
+            <div class="pos-view-panel">
+                <label style="font-size: 0.8rem; color: #aaa;">Số lượng ô đang chọn:</label>
+                <input type="text" id="hostNumPos" readonly 
+                       style="width: 50px; padding: 5px; text-align: center; background:#000; color:#fff; border:1px solid #555; margin-left: 10px;">
+                
+                <div id="hostPosContainer" class="pos-grid-display"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        var SUPABASE_URL = 'https://tfdgtdderkaergijhucb.supabase.co';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._BOLe4xH5ZuhfXfsdS63eY9N12wyomq58GG0toi1aIE';
+        var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const VIETNAMESE_ALPHABET = "AĂÂBCDĐEÊGHIKLMNOÔƠPQRSTUƯVXY".split('');
+        
+        let boardStateCache = {
+            puzzle_text: '',
+            category: '',
+            round_name: '',
+            board_layout: [],
+            revealed_chars: [],
+            pending_positions: [],
+            marked_positions: [],
+            revealed_positions: [],
+            is_full_reveal: false,
+            border_color: 'rgb(128, 0, 128)',
+            score_red_round: 0, score_red_total: 0,
+            score_yellow_round: 0, score_yellow_total: 0,
+            score_blue_round: 0, score_blue_total: 0
+        };
+
+        function parseBoardLayout(val) {
+            if (val == null || val === '') return [];
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string') {
+                try { return JSON.parse(val); } catch { return []; }
+            }
+            return [];
+        }
+
+        // Tối ưu hàm bóc tách dữ liệu linh hoạt cho cả dạng mảng (Array) và chuỗi (String) từ Controller gửi lên
+        function parsePosList(val) {
+            if (val == null || val === '') return [];
+            if (Array.isArray(val)) {
+                return val.map(x => parseInt(x, 10)).filter(n => !isNaN(n) && n >= 1 && n <= 52);
+            }
+            if (typeof val === 'string') {
+                return val.split(',').map(x => parseInt(x.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= 52);
+            }
+            if (typeof val === 'number') {
+                return [val].filter(n => n >= 1 && n <= 52);
+            }
+            return [];
+        }
+
+        function rcToPosition(r, c) {
+            if (r === 0) return (c >= 1 && c <= 12) ? c : null;
+            if (r === 1) return (c >= 0 && c <= 13) ? 13 + c : null;
+            if (r === 2) return (c >= 0 && c <= 13) ? 27 + c : null;
+            if (r === 3) return (c >= 1 && c <= 12) ? 40 + c : null;
+            return null;
+        }
+
+        function createBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            const config = [12, 14, 14, 12];
+
+            config.forEach((count, rIdx) => {
+                const row = document.createElement('div');
+                row.className = 'row';
+                for (let cIdx = 0; cIdx < count; cIdx++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    let actualColIndex = (rIdx === 0 || rIdx === 3) ? cIdx + 1 : cIdx;
+                    cell.id = `cell-${rIdx}-${actualColIndex}`;
+                    row.appendChild(cell);
+                }
+                board.appendChild(row);
+            });
+        }
+
+        function removeToneMarks(str) {
+            if (!str) return "";
+            return str.normalize("NFD").replace(/[\u0301\u0300\u0309\u0303\u0323]/g, "").normalize("NFC");
+        }
+
+        function getPuzzleStringWithSpaces(layout) {
+            if (!layout || !Array.isArray(layout)) return "-";
+            const words = [];
+            let currentWord = "";
+            const isSeparatorCell = (value) => {
+                if (value == null) return true;
+                const cell = String(value).trim();
+                return cell === "" || /^(null|undefined|nan)$/i.test(cell) || /^[-_.,;:/\\|]+$/.test(cell) || !/[0-9A-Za-zÀ-Ỵà-ỵ]/.test(cell);
+            };
+
+            layout.forEach(row => {
+                if (!Array.isArray(row)) return;
+                for (let i = 0; i < row.length; i++) {
+                    const char = row[i];
+                    if (!isSeparatorCell(char)) {
+                        currentWord += String(char).trim();
+                    } else if (currentWord !== "") {
+                        words.push(currentWord);
+                        currentWord = "";
+                    }
+                }
+                if (currentWord !== "") { words.push(currentWord); currentWord = ""; }
+            });
+            return words.join(" ") || "-";
+        }
+
+        function renderKeyboardStatus(usedChars) {
+            const kb = document.getElementById('keyboard-view');
+            kb.innerHTML = '';
+            VIETNAMESE_ALPHABET.forEach(char => {
+                const block = document.createElement('div');
+                block.innerText = char;
+                block.className = 'key-view' + (usedChars.includes(char) ? ' used' : '');
+                kb.appendChild(block);
+            });
+        }
+
+        function updateMarkedPositionsView(markedPositions) {
+            const container = document.getElementById('hostPosContainer');
+            const numInput = document.getElementById('hostNumPos');
+            container.innerHTML = '';
+            
+            if (!markedPositions || markedPositions.length === 0) {
+                numInput.value = "0";
+                return;
+            }
+            
+            numInput.value = markedPositions.length;
+            markedPositions.forEach(pos => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = pos;
+                input.readOnly = true;
+                container.appendChild(input);
+            });
+        }
+
+        function updateHostUI(newData) {
+            if (!newData) return;
+
+            if (newData.puzzle_text !== undefined) boardStateCache.puzzle_text = newData.puzzle_text;
+            if (newData.category !== undefined) boardStateCache.category = newData.category;
+            if (newData.round_name !== undefined) boardStateCache.round_name = newData.round_name;
+            if (newData.board_layout !== undefined) boardStateCache.board_layout = parseBoardLayout(newData.board_layout);
+            if (newData.revealed_chars !== undefined) {
+                boardStateCache.revealed_chars = newData.revealed_chars ? newData.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [];
+            }
+            if (newData.pending_positions !== undefined) boardStateCache.pending_positions = parsePosList(newData.pending_positions);
+            if (newData.marked_positions !== undefined) boardStateCache.marked_positions = parsePosList(newData.marked_positions);
+            if (newData.revealed_positions !== undefined) boardStateCache.revealed_positions = parsePosList(newData.revealed_positions);
+            if (newData.is_full_reveal !== undefined) boardStateCache.is_full_reveal = newData.is_full_reveal;
+            if (newData.border_color !== undefined) boardStateCache.border_color = newData.border_color;
+            
+            if (newData.score_red_round !== undefined) boardStateCache.score_red_round = newData.score_red_round;
+            if (newData.score_red_total !== undefined) boardStateCache.score_red_total = newData.score_red_total;
+            if (newData.score_yellow_round !== undefined) boardStateCache.score_yellow_round = newData.score_yellow_round;
+            if (newData.score_yellow_total !== undefined) boardStateCache.score_yellow_total = newData.score_yellow_total;
+            if (newData.score_blue_round !== undefined) boardStateCache.score_blue_round = newData.score_blue_round;
+            if (newData.score_blue_total !== undefined) boardStateCache.score_blue_total = newData.score_blue_total;
+
+            // 1. Kết xuất văn bản và thông tin phòng thi
+            document.getElementById('st-round').innerText = boardStateCache.round_name || "-";
+            document.getElementById('st-cat').innerText = boardStateCache.category || "-";
+            document.getElementById('st-puz').innerText = boardStateCache.board_layout.length ? getPuzzleStringWithSpaces(boardStateCache.board_layout) : (boardStateCache.puzzle_text || "-");
+
+            // 2. Đồng bộ hệ thống bảng điểm kép song song
+            const format = (num) => (num || 0).toLocaleString('vi-VN');
+            document.getElementById('host-red-round').innerText = format(boardStateCache.score_red_round);
+            document.getElementById('host-red-total').innerText = format(boardStateCache.score_red_total);
+            document.getElementById('host-yellow-round').innerText = format(boardStateCache.score_yellow_round);
+            document.getElementById('host-yellow-total').innerText = format(boardStateCache.score_yellow_total);
+            document.getElementById('host-blue-round').innerText = format(boardStateCache.score_blue_round);
+            document.getElementById('host-blue-total').innerText = format(boardStateCache.score_blue_total);
+
+            // 3. Đồng bộ trạng thái bàn phím chữ cái
+            renderKeyboardStatus(boardStateCache.revealed_chars);
+
+            // 4. Đồng bộ ngay lập tức số ô và vị trí cần mở khi Controller vừa ấn nút chữ cái
+            updateMarkedPositionsView(boardStateCache.pending_positions);
+
+            // 5. Kết xuất lại Puzzleboard Live dựa trên dữ liệu mới
+            const markedSet = new Set(boardStateCache.marked_positions);
+            const revealedPosSet = new Set(boardStateCache.revealed_positions);
+
+            document.querySelectorAll('.cell').forEach(c => {
+                c.className = 'cell'; c.innerText = '';
+            });
+
+            if (Array.isArray(boardStateCache.board_layout)) {
+                boardStateCache.board_layout.forEach((rowChars, rIdx) => {
+                    if (!Array.isArray(rowChars)) return;
+                    rowChars.forEach((char, cIdx) => {
+                        const target = document.getElementById(`cell-${rIdx}-${cIdx}`);
+                        if (!target || !char || String(char).trim() === "") return;
+
+                        target.classList.add('active');
+                        const ch = String(char).trim().toUpperCase();
+                        const pos = rcToPosition(rIdx, cIdx);
+
+                        const revealedByPos = pos != null && revealedPosSet.has(pos);
+
+                        if (revealedByPos) {
+                            target.innerText = boardStateCache.is_full_reveal ? ch : removeToneMarks(ch);
+                            target.classList.add('revealed');
+                        } else if (pos != null && markedSet.has(pos)) {
+                            target.classList.add('marked');
+                        }
+                    });
+                });
+            }
+
+            // 6. Đồng bộ màu viền ô chữ dựa trên kích cỡ viền mới (24px)
+            if (boardStateCache.border_color) {
+                const container = document.getElementById('puzzle-main-container');
+                if (container) {
+                    container.style.border = `24px solid ${boardStateCache.border_color}`;
+                    container.style.boxShadow = `0 0 40px ${boardStateCache.border_color}`;
+                }
+                document.documentElement.style.setProperty('--border-color', boardStateCache.border_color);
+                const board = document.getElementById('board');
+                if (board) board.style.boxShadow = `0 0 60px ${boardStateCache.border_color}`;
+            }
+        }
+
+        async function init() {
+            createBoard();
+            renderKeyboardStatus([]);
+
+            const { data } = await db.from('wheel_game').select('*').eq('id', 1).maybeSingle();
+            if (data) {
+                updateHostUI(data);
+            }
+
+            db.channel('host_share').on('postgres_changes', {
+                event: 'UPDATE', schema: 'public', table: 'wheel_game'
+            }, payload => {
+                updateHostUI(payload.new);
+            }).subscribe();
+        }
+
+        window.onload = init;
+
+        // Bảo mật hệ thống Host View
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+            if (e.keyCode === 123) e.preventDefault();
+            if ((e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+
+</html>
