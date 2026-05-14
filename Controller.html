@@ -282,7 +282,7 @@
 
             <p style="color:var(--pink); margin: 15px 0 5px 0; font-size: 0.8rem;">CÂU HỎI PHỤ VÒNG ĐẶC BIỆT:</p>
             <div class="grid-buttons">
-                <button style="background: #ff00cc; color: white;" onclick="handleRound('ĐB5.1', false)">ĐB 5.1</button>
+                <button style="background: #ff00cc; color: white;" onclick="handleRound('ĐB5.1', true)">ĐB 5.1</button>
                 <button style="background: #ff00cc; color: white;" onclick="handleRound('ĐB5.2', false)">ĐB 5.2</button>
                 <button style="background: #ff00cc; color: white;" onclick="handleRound('ĐB5.3', false)">ĐB 5.3</button>
                 <button style="background: #ff00cc; color: white;" onclick="handleRound('ĐB5.4', false)">ĐB 5.4</button>
@@ -483,11 +483,11 @@
         let currentLayout = null;
         let quickInterval = null;
         let scores = { red: { total: 0, round: 0 }, yellow: { total: 0, round: 0 }, blue: { total: 0, round: 0 } };
+        let specialRoundCatIndex = 0;
 
         const BLOCK_STARTS_12 = [3, 18, 33];
         const BLOCK_STARTS_14 = [2, 17, 32];
 
-        // Khởi tạo khi trang web load
         window.onload = async () => {
             await loadCurrentState();
             renderKeyboard();
@@ -530,7 +530,6 @@
         async function loadCurrentState() {
             const { data, error } = await db.from('wheel_game').select('*').eq('id', 1).maybeSingle();
             if (data) {
-                // Khôi phục điểm số
                 scores.red.total = data.score_red_total || 0;
                 scores.red.round = data.score_red_round || 0;
                 scores.yellow.total = data.score_yellow_total || 0;
@@ -538,7 +537,6 @@
                 scores.blue.total = data.score_blue_total || 0;
                 scores.blue.round = data.score_blue_round || 0;
 
-                // Khôi phục ký tự đã dùng
                 usedChars = data.revealed_chars ? data.revealed_chars.split(',') : [];
                 currentPuzzleRaw = data.puzzle_text || "";
 
@@ -546,7 +544,6 @@
                     try { currentLayout = JSON.parse(data.board_layout); } catch (e) { currentLayout = null; }
                 }
 
-                // Khôi phục UI trạng thái
                 document.getElementById('st-cat').innerText = data.category || "-";
                 document.getElementById('st-puz').innerText = currentLayout
                     ? getPuzzleStringWithSpaces(currentLayout)
@@ -561,56 +558,12 @@
             return (row && row[idx] != null && String(row[idx]).trim() !== '') ? String(row[idx]).trim() : "";
         }
 
-        function buildBoardLayout(rows, startRowIdx) {
-            let bestBlock = 0;
-            let maxFound = 0;
-            for (let b = 0; b < 3; b++) {
-                let count = 0;
-                for (let r = 0; r < 4; r++) {
-                    const rowData = rows[startRowIdx + r] || [];
-                    const s14 = BLOCK_STARTS_14[b];
-                    for (let c = 0; c < 14; c++) if (getCell(rowData, s14 + c)) count++;
-                }
-                if (count > maxFound) { maxFound = count; bestBlock = b; }
-            }
-
-            const s12 = BLOCK_STARTS_12[bestBlock];
-            const s14 = BLOCK_STARTS_14[bestBlock];
-            const layout = [];
-
-            let r1 = new Array(14).fill("");
-            for (let i = 0; i < 12; i++) r1[i + 1] = getCell(rows[startRowIdx], s12 + i);
-            layout.push(r1);
-
-            let r2 = new Array(14).fill("");
-            for (let i = 0; i < 14; i++) r2[i] = getCell(rows[startRowIdx + 1], s14 + i);
-            layout.push(r2);
-
-            let r3 = new Array(14).fill("");
-            for (let i = 0; i < 14; i++) r3[i] = getCell(rows[startRowIdx + 2], s14 + i);
-            layout.push(r3);
-
-            let r4 = new Array(14).fill("");
-            for (let i = 0; i < 12; i++) r4[i + 1] = getCell(rows[startRowIdx + 3], s12 + i);
-            layout.push(r4);
-
-            return layout;
-        }
-
-        function isPuzzleRoundRow(a0) {
-            if (!a0) return false;
-            const s = String(a0).trim();
-            return /Vòng|Đoán Nhanh|ĐNLH|Khởi động|Câu|ĐB/i.test(s);
-        }
-
-        // 1. Định nghĩa vị trí cột theo yêu cầu của bạn
         const COL_MAP = {
-            P1: { cat: 1, cols12: [3, 14], cols14: [2, 15] },  // Chủ đề 1: Cột B, Cột D-O (12), Cột C-P (14)
-            P2: { cat: 16, cols12: [18, 29], cols14: [17, 30] }, // Chủ đề 2: Cột Q, Cột S-AD (12), Cột R-AE (14)
-            P3: { cat: 31, cols12: [33, 44], cols14: [32, 45] }  // Chủ đề 3: Cột AF, Cột AH-AS (12), Cột AG-AT (14)
+            P1: { cat: 1, cols12: [3, 14], cols14: [2, 15] },
+            P2: { cat: 16, cols12: [18, 29], cols14: [17, 30] },
+            P3: { cat: 31, cols12: [33, 44], cols14: [32, 45] }
         };
 
-        // 2. Hàm xây dựng Layout từ 4 hàng cố định
         function buildLayoutFromBlock(block, config) {
             const layout = [];
             const { cols12, cols14 } = config;
@@ -620,19 +573,14 @@
                 return rowArr.slice(start, end + 1).map(c => (c != null && c !== '') ? String(c).trim() : "");
             };
 
-            // Hàng 1 (Hàng 12 ô): Lấy dữ liệu và thêm 1 ô trống 2 đầu để đủ 14 cột
             layout.push(["", ...getChars(block[0], cols12[0], cols12[1]), ""]);
-            // Hàng 2 (Hàng 14 ô)
             layout.push(getChars(block[1], cols14[0], cols14[1]));
-            // Hàng 3 (Hàng 14 ô)
             layout.push(getChars(block[2], cols14[0], cols14[1]));
-            // Hàng 4 (Hàng 12 ô)
             layout.push(["", ...getChars(block[3], cols12[0], cols12[1]), ""]);
 
             return layout;
         }
 
-        // 3. Xử lý nạp file Excel theo quy tắc nhảy 4 hàng
         document.getElementById('excelFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -644,15 +592,13 @@
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
 
                 excelData = [];
-                // Bắt đầu từ hàng 2 (index 1), mỗi bước nhảy 4 hàng
                 for (let i = 1; i < rows.length; i += 4) {
                     const block = rows.slice(i, i + 4);
-                    if (!block[0] || !block[0][0]) continue; // Bỏ qua hàng trống
+                    if (!block[0] || !block[0][0]) continue;
 
                     const roundName = String(block[0][0]).trim();
                     const options = [];
 
-                    // Kiểm tra và nạp 3 chủ đề nằm ngang
                     ["P1", "P2", "P3"].forEach(key => {
                         const config = COL_MAP[key];
                         const catName = block[0][config.cat];
@@ -681,17 +627,21 @@
                 return;
             }
 
-            const isQuick = ["Đoán Nhanh", "ĐNLH"].some(t => roundName.includes(t));
+            const isQuick = ["Đoán Nhanh", "ĐNLH"].some(t => roundName.includes(t)) || roundName.includes('ĐB5.');
             const rnLower = roundName.toLowerCase();
             const isSpecialRound = rnLower.includes('vòng đặc biệt') || rnLower.includes('vòng phụ') || roundName.includes('ĐB');
 
             document.getElementById('quick-panel').style.display = isQuick ? 'block' : 'none';
             document.getElementById('btn-nghia').style.display = isSpecialRound ? 'block' : 'none';
-            // Vòng ĐB, câu hỏi phụ ĐB*, và Vòng phụ: NGHIA + đoán thêm + mở ô như nhau
             document.getElementById('special-guess-panel').style.display = isSpecialRound ? 'block' : 'none';
 
             if (!hasPopup) {
-                sendToBoard(currentRoundData.Options[0].cat, currentRoundData.Options[0].layout);
+                if (/ĐB5\.[2-5]/.test(roundName)) {
+                    const opt = currentRoundData.Options[specialRoundCatIndex] || currentRoundData.Options[0];
+                    sendToBoard(opt.cat, opt.layout);
+                } else {
+                    sendToBoard(currentRoundData.Options[0].cat, currentRoundData.Options[0].layout);
+                }
             } else {
                 const actions = `
             <button onclick="loadFixedPuzzle()" style="background: var(--pink);color: white; width: 100%; padding: 15px; margin-bottom: 10px;">Ô CHỮ CỐ ĐỊNH</button>
@@ -702,6 +652,9 @@
         }
 
         function loadFixedPuzzle() {
+            if (selectedRoundName === 'ĐB5.1') {
+                specialRoundCatIndex = 0;
+            }
             sendToBoard(currentRoundData.Options[0].cat, currentRoundData.Options[0].layout);
             closePopup();
         }
@@ -715,6 +668,9 @@
         }
 
         function selectCategoryByIndex(idx) {
+            if (selectedRoundName === 'ĐB5.1') {
+                specialRoundCatIndex = idx;
+            }
             const opt = currentRoundData.Options[idx];
             if (opt) sendToBoard(opt.cat, opt.layout);
         }
@@ -734,7 +690,7 @@
                 marked_positions: "",
                 revealed_positions: "",
                 board_layout: JSON.stringify(layout),
-                is_full_reveal: false // Reset không hiện dấu
+                is_full_reveal: false
             }).eq('id', 1);
 
             if (!error) {
@@ -759,24 +715,11 @@
             }
         }
 
-
         function rcToPosition(r, c) {
-            if (r === 0) {
-                if (c < 1 || c > 12) return null;
-                return c;
-            }
-            if (r === 1) {
-                if (c < 0 || c > 13) return null;
-                return 13 + c;
-            }
-            if (r === 2) {
-                if (c < 0 || c > 13) return null;
-                return 27 + c;
-            }
-            if (r === 3) {
-                if (c < 1 || c > 12) return null;
-                return 40 + c;
-            }
+            if (r === 0) { if (c < 1 || c > 12) return null; return c; }
+            if (r === 1) { if (c < 0 || c > 13) return null; return 13 + c; }
+            if (r === 2) { if (c < 0 || c > 13) return null; return 27 + c; }
+            if (r === 3) { if (c < 1 || c > 12) return null; return 40 + c; }
             return null;
         }
 
@@ -797,28 +740,24 @@
 
             if (positions.length === 0 || !currentLayout) return;
 
-            // Lấy trạng thái mới nhất từ cơ sở dữ liệu
             const { data: row } = await db.from('wheel_game').select('marked_positions, revealed_positions, revealed_chars').eq('id', 1).maybeSingle();
 
             let marked = (row && row.marked_positions) ? row.marked_positions.split(',').filter(Boolean).map(Number) : [];
             let revPos = (row && row.revealed_positions) ? row.revealed_positions.split(',').filter(Boolean).map(Number) : [];
 
-            // LUẬT Ô MAY MẮN: Nếu là Lần 2, chỉ lọc giữ lại các ô THỰC SỰ đã được đánh dấu ở Lần 1
             if (mode === 2) {
                 positions = positions.filter(pos => marked.includes(pos));
-                if (positions.length === 0) return; // Nếu không có ô nào được đánh dấu trước đó thì dừng lại
+                if (positions.length === 0) return;
             }
 
             for (let i = 0; i < positions.length; i++) {
                 const pos = positions[i];
 
                 if (mode === 1) {
-                    // LẦN 1: CHỈ ĐÁNH DẤU CAM
                     if (!marked.includes(pos)) marked.push(pos);
                     await db.from('wheel_game').update({ marked_positions: marked.join(',') }).eq('id', 1);
                 }
                 else {
-                    // LẦN 2: MỞ CHỮ LẦN LƯỢT TỪNG Ô (CHỈ Ô ĐƯỢC ĐÁNH DẤU)
                     const rc = positionToRC(pos);
                     const ch = currentLayout[rc.r][rc.c];
                     if (ch) {
@@ -851,11 +790,9 @@
             if (quickInterval) clearInterval(quickInterval);
 
             quickInterval = setInterval(async () => {
-                // Lấy dữ liệu mới nhất từ DB để tránh ghi đè
                 const { data } = await db.from('wheel_game').select('revealed_positions').eq('id', 1).single();
                 let revPos = data.revealed_positions ? data.revealed_positions.split(',').map(Number) : [];
 
-                // Tìm các vị trí có chữ nhưng chưa lật
                 let availablePositions = [];
                 for (let r = 0; r < 4; r++) {
                     for (let c = 0; c < 14; c++) {
@@ -874,7 +811,6 @@
                     return;
                 }
 
-                // Chọn ngẫu nhiên 1 vị trí duy nhất
                 const randomPos = availablePositions[Math.floor(Math.random() * availablePositions.length)];
                 revPos.push(randomPos);
 
@@ -882,10 +818,10 @@
                     revealed_positions: revPos.join(',')
                 }).eq('id', 1);
 
-            }, 2000); // Khoảng cách 2 giây mỗi ô
+            }, 2000);
         }
 
-        function revealNghia() {
+        async function revealNghia() {
             if (!currentLayout) return;
 
             const targetChars = ['N', 'G', 'H', 'I', 'A'];
@@ -895,11 +831,10 @@
                 for (let c = 0; c < 14; c++) {
                     let cellChar = currentLayout[r][c];
                     if (cellChar) {
-                        // Kiểm tra trực tiếp để loại trừ Ă, Â trước khi chuẩn hóa
                         if (cellChar === 'Ă' || cellChar === 'Â') continue;
 
                         let norm = cellChar.normalize('NFD')
-                            .replace(/[\u0300\u0301\u0303\u0309\u0323]/g, '')
+                            .replace(/[̣̀́̃̉]/g, '')
                             .normalize('NFC')
                             .toUpperCase();
 
@@ -910,7 +845,38 @@
                     }
                 }
             }
-            void fillPositionsToController(foundPositions);
+
+            // ĐIỀU CHỈNH MỚI: Nếu là câu hỏi phụ vòng đặc biệt (ĐB5.1 -> ĐB5.5), lật ngay lập tức lập tức
+            if (selectedRoundName.includes('ĐB5.')) {
+                if (foundPositions.length === 0) return;
+
+                const { data: row } = await db.from('wheel_game').select('revealed_positions, marked_positions').eq('id', 1).maybeSingle();
+                let revPos = (row && row.revealed_positions) ? row.revealed_positions.split(',').filter(Boolean).map(Number) : [];
+                let marked = (row && row.marked_positions) ? row.marked_positions.split(',').filter(Boolean).map(Number) : [];
+
+                foundPositions.forEach(pos => {
+                    if (!revPos.includes(pos)) revPos.push(pos);
+                    marked = marked.filter(p => p !== pos);
+                });
+
+                targetChars.forEach(char => {
+                    if (!usedChars.includes(char)) usedChars.push(char);
+                });
+                renderKeyboard();
+
+                await db.from('wheel_game').update({
+                    revealed_positions: revPos.join(','),
+                    marked_positions: marked.join(','),
+                    pending_positions: '',
+                    revealed_chars: usedChars.join(',')
+                }).eq('id', 1);
+
+                document.getElementById('numPos').value = "";
+                generatePosInputs();
+            } else {
+                // Vòng phụ và Vòng đặc biệt chính thức: Vẫn phải trải qua 3 bước như cũ
+                void fillPositionsToController(foundPositions);
+            }
         }
 
         async function revealAll() {
@@ -918,7 +884,7 @@
             await db.from('wheel_game').update({
                 revealed_chars: usedChars.join(','),
                 pending_positions: "",
-                is_full_reveal: true // Bật trạng thái hiện dấu
+                is_full_reveal: true
             }).eq('id', 1);
             renderKeyboard();
         }
@@ -941,7 +907,6 @@
             if (!usedChars.includes(char)) {
                 let positions = [];
                 
-                // 1. LẤY DANH SÁCH CÁC Ô ĐÃ MỞ TỪ DATABASE
                 const { data: row } = await db.from('wheel_game').select('revealed_positions').eq('id', 1).maybeSingle();
                 let revPos = (row && row.revealed_positions) ? row.revealed_positions.split(',').filter(Boolean).map(Number) : [];
 
@@ -950,16 +915,13 @@
                         for (let c = 0; c < 14; c++) {
                             let cellChar = currentLayout[r][c];
                             if (cellChar) {
-                                // Khử dấu thanh để so sánh chữ cái
                                 let norm = cellChar.normalize('NFD')
-                                    .replace(/[\u0300\u0301\u0303\u0309\u0323]/g, '')
+                                    .replace(/[̣̀́̃̉]/g, '')
                                     .normalize('NFC')
                                     .toUpperCase();
 
                                 if (norm === char) {
                                     let pos = rcToPosition(r, c);
-                                    
-                                    // 2. ĐIỀU KIỆN MỚI: Chỉ thêm vào nếu vị trí này CHƯA được mở
                                     if (pos && !revPos.includes(pos)) {
                                         positions.push(pos);
                                     }
@@ -969,7 +931,6 @@
                     }
                 }
 
-                // 3. HIỂN THỊ KẾT QUẢ ĐÃ LỌC LÊN GIAO DIỆN
                 if (positions.length > 0) {
                     document.getElementById('numPos').value = positions.length;
                     generatePosInputs();
@@ -978,7 +939,6 @@
                         if(inputs[idx]) inputs[idx].value = p;
                     });
                 } else {
-                    // Nếu không còn chữ nào chưa mở, xóa trắng mục nhập vị trí
                     document.getElementById('numPos').value = "";
                     generatePosInputs();
                 }
@@ -1057,7 +1017,6 @@
             if (!currentLayout) return;
 
             const inputs = document.querySelectorAll('.guess-input');
-            // Lấy giá trị đã nhập, khử dấu thanh, giữ mặt chữ (U, Ư...)
             const guessedChars = Array.from(inputs)
                 .map(i => i.value.trim())
                 .filter(v => v !== "")
@@ -1073,10 +1032,8 @@
                 for (let c = 0; c < 14; c++) {
                     let cellChar = currentLayout[r][c];
                     if (cellChar) {
-                        // Khử dấu thanh của ô chữ trên bảng để so sánh
                         let normCell = removeVietnameseTones(cellChar);
 
-                        // Kiểm tra xem chữ trên bảng (đã khử dấu thanh) có nằm trong danh sách đoán không
                         if (guessedChars.includes(normCell)) {
                             const pos = rcToPosition(r, c);
                             if (pos != null) foundPositions.push(pos);
@@ -1117,25 +1074,18 @@
             if (!str) return "";
             str = str.toUpperCase().trim();
 
-            // Nhóm A, Ă, Â
             str = str.replace(/[ÁÀẢÃẠ]/g, "A");
             str = str.replace(/[ẮẰẲẴẶ]/g, "Ă");
             str = str.replace(/[ẤẦẨẪẬ]/g, "Â");
-            // Nhóm E, Ê
             str = str.replace(/[ÉÈẺẼẸ]/g, "E");
             str = str.replace(/[ẾỀỂỄỆ]/g, "Ê");
-            // Nhóm I
             str = str.replace(/[ÍÌỈĨỊ]/g, "I");
-            // Nhóm O, Ô, Ơ
             str = str.replace(/[ÓÒỎÕỌ]/g, "O");
             str = str.replace(/[ỐỒỔỖỘ]/g, "Ô");
             str = str.replace(/[ỚỜỞỠỢ]/g, "Ơ");
-            // Nhóm U, Ư (Đảm bảo tách biệt tuyệt đối)
             str = str.replace(/[ÚÙỦŨỤ]/g, "U");
             str = str.replace(/[ỨỪỬỮỰ]/g, "Ư");
-            // Nhóm Y
             str = str.replace(/[ÝỲỶỸỴ]/g, "Y");
-            // Nhóm D, Đ
             str = str.replace(/[Đ]/g, "Đ");
 
             return str;
@@ -1143,9 +1093,7 @@
 
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
-            // Chặn F12
             if (e.keyCode === 123) e.preventDefault();
-            // Chặn Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
             if ((e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) {
                 e.preventDefault();
             }
