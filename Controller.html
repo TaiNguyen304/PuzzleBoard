@@ -289,6 +289,13 @@
                 <button style="background: #ff00cc; color: white;" onclick="handleRound('ĐB5.5', false)">ĐB 5.5</button>
             </div>
 
+            <p style="color:var(--pink); margin: 15px 0 5px 0; font-size: 0.8rem;">ĐIỀU KHIỂN CHUÔNG TÍN HIỆU:</p>
+            <div class="grid-buttons">
+                <button style="background: aqua; color: black;" onclick="openBuzzer()">Mở chuông</button>
+                <button style="background: aqua; color: black;" onclick="lockBuzzer()">Khóa chuông</button>
+                <button style="background: aqua; color: black;" onclick="resetBuzzer()">Reset chuông</button>
+            </div>
+
             <button id="btn-nghia" onclick="revealNghia()"
                 style="display:none; width:100%; margin-top:10px; background: purple; color: white;">
                 MỞ CÁC CHỮ: N, G, H, I, A
@@ -678,7 +685,7 @@
         async function sendToBoard(cat, layout) {
             currentLayout = layout;
             const rawText = getPuzzleStringWithSpaces(layout);
-            
+
             currentPuzzleRaw = rawText;
             usedChars = [];
 
@@ -846,7 +853,6 @@
                 }
             }
 
-            // ĐIỀU CHỈNH MỚI: Nếu là câu hỏi phụ vòng đặc biệt (ĐB5.1 -> ĐB5.5), lật ngay lập tức lập tức
             if (selectedRoundName.includes('ĐB5.')) {
                 if (foundPositions.length === 0) return;
 
@@ -874,7 +880,6 @@
                 document.getElementById('numPos').value = "";
                 generatePosInputs();
             } else {
-                // Vòng phụ và Vòng đặc biệt chính thức: Vẫn phải trải qua 3 bước như cũ
                 void fillPositionsToController(foundPositions);
             }
         }
@@ -906,7 +911,7 @@
         async function pressKey(char) {
             if (!usedChars.includes(char)) {
                 let positions = [];
-                
+
                 const { data: row } = await db.from('wheel_game').select('revealed_positions').eq('id', 1).maybeSingle();
                 let revPos = (row && row.revealed_positions) ? row.revealed_positions.split(',').filter(Boolean).map(Number) : [];
 
@@ -936,7 +941,7 @@
                     generatePosInputs();
                     const inputs = document.querySelectorAll('.pos-item');
                     positions.forEach((p, idx) => {
-                        if(inputs[idx]) inputs[idx].value = p;
+                        if (inputs[idx]) inputs[idx].value = p;
                     });
                 } else {
                     document.getElementById('numPos').value = "";
@@ -974,6 +979,45 @@
         function closePopup() { document.getElementById('mainModal').style.display = 'none'; }
 
         async function changeBorderColor(color) { await db.from('wheel_game').update({ border_color: color }).eq('id', 1); }
+
+        /* --- CÁC HÀM ĐIỀU KHIỂN CHUÔNG MỚI BỔ SUNG --- */
+        async function openBuzzer() {
+            await db.from('wheel_game').update({
+                is_buzzer_locked: false,
+                buzzer_player: ""
+            }).eq('id', 1);
+            await changeBorderColor('rgb(128,0,128)');
+        }
+
+        async function lockBuzzer() {
+            await db.from('wheel_game').update({
+                is_buzzer_locked: true
+            }).eq('id', 1);
+        }
+
+        async function resetBuzzer() {
+            // 1. Lấy trạng thái khóa hiện tại từ database
+            const { data: currentGame } = await db.from('wheel_game')
+                .select('is_buzzer_locked')
+                .eq('id', 1)
+                .single();
+
+            const currentLockStatus = currentGame ? currentGame.is_buzzer_locked : false;
+
+            // 2. Cập nhật: xóa người bấm, trả màu viền về tím, nhưng GIỮ NGUYÊN trạng thái khóa
+            const { error } = await db.from('wheel_game').update({
+                buzzer_player: "",
+                is_buzzer_locked: currentLockStatus, // Giữ nguyên trạng thái cũ
+                border_color: 'rgb(128,0,128)'      // Reset màu viền về tím mặc định
+            }).eq('id', 1);
+
+            if (error) {
+                console.error("Lỗi khi reset chuông:", error);
+            } else {
+                console.log("Đã reset chuông. Trạng thái:", currentLockStatus);
+            }
+        }
+        /* --------------------------------------------- */
 
         function formatInput(input) {
             let val = input.value.replace(/\D/g, "");
