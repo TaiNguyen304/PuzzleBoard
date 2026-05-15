@@ -247,6 +247,10 @@
             margin-top: 20px;
             border-radius: 5px;
         }
+
+        audio {
+            display: none;
+        }
     </style>
 </head>
 
@@ -386,6 +390,8 @@
                 <button onclick="changeBorderColor('rgb(0,255,0)')"
                     style="background: transparent; border: 2px solid rgb(0, 255, 0); color: white; cursor: pointer; padding: 5px;">Xanh
                     Lá</button>
+                <button onclick="changeBorderColor('rgb(255,255,255)')"
+                    style="background: #222; border: 2px solid rgb(255,255,255); color: #fff; cursor: pointer; padding: 5px; text-shadow: 0 0 2px #000;">Trắng</button>
             </div>
         </div>
 
@@ -476,6 +482,8 @@
         </div>
     </div>
 
+    
+    <audio id="buzzerSound" src="buzzer.mp3" preload="auto"></audio>
     <script>
         var SUPABASE_URL = 'https://tfdgtdderkaergijhucb.supabase.co';
         var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._BOLe4xH5ZuhfXfsdS63eY9N12wyomq58GG0toi1aIE';
@@ -498,6 +506,24 @@
         window.onload = async () => {
             await loadCurrentState();
             renderKeyboard();
+
+            db.channel('controller_buzz').on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'wheel_game'
+            }, payload => {
+                const newData = payload.new;
+                if (!('buzzer_player' in newData)) return;
+                const bp = newData.buzzer_player;
+                const n = (bp === null || bp === undefined || bp === '') ? null : Number(bp);
+                const prev = (lastBuzzerState === null || lastBuzzerState === undefined || lastBuzzerState === '')
+                    ? null
+                    : Number(lastBuzzerState);
+                if (n != null && !isNaN(n) && [1, 2, 3].includes(n) && n !== prev) {
+                    playBuzzer();
+                }
+                lastBuzzerState = bp;
+            }).subscribe();
         };
 
         function getPuzzleStringWithSpaces(layout) {
@@ -558,6 +584,7 @@
 
                 updateScoreUI();
                 renderKeyboard();
+                if ('buzzer_player' in data) lastBuzzerState = data.buzzer_player;
             }
         }
 
@@ -1133,6 +1160,16 @@
             str = str.replace(/[Đ]/g, "Đ");
 
             return str;
+        }
+
+        let lastBuzzerState = 0;
+
+        function playBuzzer() {
+            const sound = document.getElementById('buzzerSound');
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log("Yêu cầu tương tác để phát nhạc:", e));
+            }
         }
 
         document.addEventListener('contextmenu', e => e.preventDefault());

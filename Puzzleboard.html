@@ -158,6 +158,8 @@
             box-shadow: 0 0 20px rgba(128, 0, 128, 0.5);
             padding: 5px;
         }
+
+        audio { display: none; }
     </style>
 </head>
 
@@ -172,6 +174,7 @@
         <div id="board"></div>
     </div>
 
+    <audio id="buzzerSound" src="buzzer.mp3" preload="auto"></audio>
     <script>
         var SUPABASE_URL = 'https://tfdgtdderkaergijhucb.supabase.co';
         var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._BOLe4xH5ZuhfXfsdS63eY9N12wyomq58GG0toi1aIE';
@@ -343,6 +346,7 @@
                 }
 
                 updateScores(data);
+                if ('buzzer_player' in data) lastBuzzerState = data.buzzer_player;
             }
 
             // Lắng nghe thay đổi thời gian thực từ Supabase
@@ -352,6 +356,19 @@
                 table: 'wheel_game'
             }, payload => {
                 const newData = payload.new;
+
+                if ('buzzer_player' in newData) {
+                    const bp = newData.buzzer_player;
+                    const n = (bp === null || bp === undefined || bp === '' || bp === 0) ? null : Number(bp);
+                    const prev = (lastBuzzerState === null || lastBuzzerState === undefined || lastBuzzerState === '' || lastBuzzerState === 0)
+                        ? null
+                        : Number(lastBuzzerState);
+
+                    if (n !== null && !isNaN(n) && [1, 2, 3].includes(n) && n !== prev) {
+                        playBuzzer();
+                    }
+                    lastBuzzerState = bp;
+                }
 
                 const isFull = newData.is_full_reveal !== undefined
                     ? newData.is_full_reveal
@@ -363,42 +380,27 @@
                     || newData.is_full_reveal !== undefined) {
 
                     const puzzle = newData.puzzle_text !== undefined ? (newData.puzzle_text || "") : boardStateCache.puzzle_text;
-
                     const revealed = newData.revealed_chars !== undefined
                         ? (newData.revealed_chars ? newData.revealed_chars.split(',').map(s => s.trim()).filter(Boolean) : [])
                         : boardStateCache.revealedList;
-
                     const cat = newData.category !== undefined ? (newData.category || "") : boardStateCache.category;
-
                     const layoutData = newData.board_layout !== undefined
                         ? parseBoardLayout(newData.board_layout)
                         : boardStateCache.boardLayout;
-
                     const markedPositions = newData.marked_positions !== undefined
                         ? parsePosList(newData.marked_positions)
                         : boardStateCache.markedPositions;
-
                     const revealedPositions = newData.revealed_positions !== undefined
                         ? parsePosList(newData.revealed_positions)
                         : boardStateCache.revealedPositions;
 
-                    updateBoard(
-                        puzzle,
-                        revealed,
-                        cat,
-                        layoutData,
-                        markedPositions,
-                        revealedPositions,
-                        isFull
-                    );
+                    updateBoard(puzzle, revealed, cat, layoutData, markedPositions, revealedPositions, isFull);
                 }
 
                 if (newData.border_color) {
                     applyBorderColor(newData.border_color);
                 }
-
                 updateScores(newData);
-
             }).subscribe();
         }
 
@@ -447,6 +449,15 @@
         createBoard();
         init();
 
+        let lastBuzzerState = 0;
+
+        function playBuzzer() {
+            const sound = document.getElementById('buzzerSound');
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log("Yêu cầu tương tác để phát nhạc:", e));
+            }
+        }
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (e.keyCode === 123) e.preventDefault();

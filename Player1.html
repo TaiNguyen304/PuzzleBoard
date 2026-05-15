@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
-
+ 
 <head>
     <meta charset="UTF-8">
     <title>Player 1</title>
@@ -257,6 +257,8 @@
             color: #fff;
             border-color: orange;
         }
+
+        audio { display: none; }
     </style>
 </head>
 
@@ -286,6 +288,7 @@
         </div>
     </div>
 
+    <audio id="buzzerSound" src="buzzer.mp3" preload="auto"></audio>
     <script>
         var PLAYER_ID = 1; // Xác định danh tính người chơi công khai
 
@@ -543,6 +546,7 @@
                 }
 
                 updateScores(data);
+                if ('buzzer_player' in data) lastBuzzerState = data.buzzer_player;
                 updateBuzzerUI(data);
             }
 
@@ -554,10 +558,23 @@
             }, payload => {
                 const newData = payload.new;
 
+                if ('buzzer_player' in newData) {
+                    const bp = newData.buzzer_player;
+                    const n = (bp === null || bp === undefined || bp === '') ? null : Number(bp);
+                    const prev = (lastBuzzerState === null || lastBuzzerState === undefined || lastBuzzerState === '')
+                        ? null
+                        : Number(lastBuzzerState);
+                    if (n != null && !isNaN(n) && [1, 2, 3].includes(n) && n !== prev) {
+                        playBuzzer();
+                    }
+                    lastBuzzerState = bp;
+                }
+
                 const isFull = newData.is_full_reveal !== undefined
                     ? newData.is_full_reveal
                     : (boardStateCache.isFullReveal || false);
 
+                
                 if (newData.puzzle_text !== undefined || newData.board_layout !== undefined
                     || newData.revealed_chars !== undefined || newData.marked_positions !== undefined
                     || newData.revealed_positions !== undefined || newData.category !== undefined
@@ -607,6 +624,15 @@
         createBoard();
         init();
 
+        let lastBuzzerState = 0;
+
+        function playBuzzer() {
+            const sound = document.getElementById('buzzerSound');
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log("Yêu cầu tương tác để phát nhạc:", e));
+            }
+        }
         // Gán sự kiện click nút chuông
         document.getElementById('buzzer-btn').addEventListener('click', pressBuzzer);
 

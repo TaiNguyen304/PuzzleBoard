@@ -289,6 +289,52 @@
             border-radius: 4px;
             font-size: 0.9rem;
         }
+
+        .buzzer-status-bar {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: stretch;
+            gap: 16px;
+            margin: 12px 0 8px 0;
+        }
+
+        .buzzer-indicator {
+            flex: 1;
+            max-width: 220px;
+            min-height: 52px;
+            background: #800080;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 6px;
+            font-size: 1.15rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+
+        /* Trạng thái khi kích hoạt */
+        .buzzer-indicator.active-p1 {
+            background: #ff0000 !important;
+            color: white !important;
+        }
+
+        .buzzer-indicator.active-p2 {
+            background: #ffff00 !important;
+            color: black !important;
+        }
+
+        .buzzer-indicator.active-p3 {
+            background: #0000ff !important;
+            color: white !important;
+        }
+
+        audio {
+            display: none;
+        }
     </style>
 </head>
 
@@ -301,6 +347,11 @@
             <div class="status-item" style="flex: 1;">Ô CHỮ ĐANG GIẢI: <span id="st-puz">-</span></div>
         </div>
 
+        <div class="buzzer-status-bar">
+            <div id="ind-p1" class="buzzer-indicator">P1</div>
+            <div id="ind-p2" class="buzzer-indicator">P2</div>
+            <div id="ind-p3" class="buzzer-indicator">P3</div>
+        </div>
         <div id="puzzle-main-container">
             <div id="board"></div>
         </div>
@@ -352,6 +403,7 @@
         </div>
     </div>
 
+    <audio id="buzzerSound" src="buzzer.mp3" preload="auto"></audio>
     <script>
         var SUPABASE_URL = 'https://tfdgtdderkaergijhucb.supabase.co';
         var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._BOLe4xH5ZuhfXfsdS63eY9N12wyomq58GG0toi1aIE';
@@ -493,6 +545,9 @@
             if (newData.is_full_reveal !== undefined) boardStateCache.is_full_reveal = newData.is_full_reveal;
             if (newData.border_color !== undefined) boardStateCache.border_color = newData.border_color;
 
+            // Cập nhật trạng thái chuông vào Cache
+            if (newData.buzzer_player !== undefined) boardStateCache.buzzer_player = newData.buzzer_player;
+
             if (newData.score_red_round !== undefined) boardStateCache.score_red_round = newData.score_red_round;
             if (newData.score_red_total !== undefined) boardStateCache.score_red_total = newData.score_red_total;
             if (newData.score_yellow_round !== undefined) boardStateCache.score_yellow_round = newData.score_yellow_round;
@@ -539,7 +594,7 @@
                 });
             }
 
-            // --- 6. KẾT XUẤT PUZZLEBOARD LIVE (Đã điều chỉnh logic Hiện toàn bộ ô chữ kèm dấu) ---
+            // --- 6. KẾT XUẤT PUZZLEBOARD LIVE ---
             const markedSet = new Set(markedList);
             const revealedPosSet = new Set(boardStateCache.revealed_positions);
 
@@ -559,7 +614,6 @@
                         const ch = String(char).trim().toUpperCase();
                         const pos = rcToPosition(rIdx, cIdx);
 
-                        // Nếu kích hoạt nút hiện toàn bộ (is_full_reveal) hoặc ô này nằm trong tập các ô đã lật mở trước đó
                         if (boardStateCache.is_full_reveal || (pos != null && revealedPosSet.has(pos))) {
                             target.innerText = boardStateCache.is_full_reveal ? ch : removeToneMarks(ch);
                             target.classList.add('revealed');
@@ -581,25 +635,77 @@
                 const board = document.getElementById('board');
                 if (board) board.style.boxShadow = `0 0 60px ${boardStateCache.border_color}`;
             }
+
+            // --- 8. ĐỒNG BỘ TRẠNG THÁI BẤM CHUÔNG ---
+            updateBuzzerUI(boardStateCache.buzzer_player);
         }
 
+        function updateBuzzerUI(buzzerPlayer) {
+            const ind1 = document.getElementById('ind-p1');
+            const ind2 = document.getElementById('ind-p2');
+            const ind3 = document.getElementById('ind-p3');
+
+            if (!ind1 || !ind2 || !ind3) return;
+
+            // Reset về mặc định
+            ind1.className = 'buzzer-indicator';
+            ind2.className = 'buzzer-indicator';
+            ind3.className = 'buzzer-indicator';
+
+            const p = buzzerPlayer === null || buzzerPlayer === undefined || buzzerPlayer === ''
+                ? null
+                : Number(buzzerPlayer);
+            if (p === 1) ind1.classList.add('active-p1');
+            else if (p === 2) ind2.classList.add('active-p2');
+            else if (p === 3) ind3.classList.add('active-p3');
+        }
         async function init() {
             createBoard();
             renderKeyboardStatus([]);
 
             const { data } = await db.from('wheel_game').select('*').eq('id', 1).maybeSingle();
             if (data) {
+                if ('buzzer_player' in data) lastBuzzerState = data.buzzer_player;
                 updateHostUI(data);
             }
 
             db.channel('host_share').on('postgres_changes', {
-                event: 'UPDATE', schema: 'public', table: 'wheel_game'
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'wheel_game'
             }, payload => {
-                updateHostUI(payload.new);
+                const newData = payload.new;
+
+                if ('buzzer_player' in newData) {
+                    const bp = newData.buzzer_player;
+                    // Chuẩn hóa giá trị để so sánh (null, undefined, rỗng hoặc 0 đều là không có người bấm)
+                    const n = (bp === null || bp === undefined || bp === '' || bp === 0) ? null : Number(bp);
+                    const prev = (lastBuzzerState === null || lastBuzzerState === undefined || lastBuzzerState === '' || lastBuzzerState === 0)
+                        ? null
+                        : Number(lastBuzzerState);
+
+                    // Chỉ phát chuông khi n có giá trị (1, 2, 3) và trạng thái này thực sự mới (khác với lần cập nhật trước)
+                    if (n !== null && !isNaN(n) && [1, 2, 3].includes(n) && n !== prev) {
+                        playBuzzer();
+                    }
+                    lastBuzzerState = bp; // Luôn cập nhật trạng thái mới nhất vào cache
+                }
+
+                updateHostUI(newData);
             }).subscribe();
         }
 
         window.onload = init;
+
+        let lastBuzzerState = 0;
+
+        function playBuzzer() {
+            const sound = document.getElementById('buzzerSound');
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(e => console.log("Yêu cầu tương tác để phát nhạc:", e));
+            }
+        }
 
         // Bảo mật hệ thống Host View
         document.addEventListener('contextmenu', e => e.preventDefault());
