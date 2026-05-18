@@ -258,6 +258,22 @@
             border-color: orange;
         }
 
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 70px;
+            height: 70px;
+            background: #ff00cc;
+            color: #fff;
+            font-size: 2rem;
+            border-radius: 10px;
+            font-weight: 900;
+            box-shadow: 0 0 15px rgba(255, 0, 204, 0.6);
+            margin-bottom: 15px;
+            border: 3px solid #fff;
+        }
+
         
     </style>
 </head>
@@ -279,6 +295,7 @@
 
         <!-- BÊN PHẢI NGOÀI CÙNG: CHIẾM 20% GIAO DIỆN -->
         <div id="sidebar-right">
+            <div class="timer-display" id="player3-timer">45</div>
             <div id="sidebar-scores">
                 <div class="sidebar-score-box" id="side-score-1">P1: 0</div>
                 <div class="sidebar-score-box" id="side-score-2">P2: 0</div>
@@ -548,6 +565,14 @@
                 updateScores(data);
                 if ('buzzer_player' in data) lastBuzzerState = data.buzzer_player;
                 updateBuzzerUI(data);
+                
+                // Update timer display on initial load
+                if ('timer' in data) {
+                    const timerDisplay = document.getElementById('player3-timer');
+                    if (timerDisplay) {
+                        timerDisplay.innerText = data.timer || '0';
+                    }
+                }
             }
 
             // Lắng nghe thay đổi thời gian thực từ Supabase
@@ -617,7 +642,30 @@
                 updateScores(newData);
                 updateBuzzerUI(newData);
 
+                // Update timer display
+                if (newData.timer !== undefined) {
+                    const timerDisplay = document.getElementById('player3-timer');
+                    if (timerDisplay) {
+                        timerDisplay.innerText = newData.timer || '0';
+                    }
+                }
+
             }).subscribe();
+
+            // Poll timer every second to ensure synchronization
+            setInterval(async () => {
+                try {
+                    const { data } = await db.from('wheel_game').select('timer').eq('id', 1).maybeSingle();
+                    if (data) {
+                        const timerDisplay = document.getElementById('player3-timer');
+                        if (timerDisplay) {
+                            timerDisplay.innerText = String(data.timer || '0');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Timer poll error:', e);
+                }
+            }, 500);
         }
 
         createBoard();

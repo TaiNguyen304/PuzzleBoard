@@ -335,6 +335,22 @@
         audio {
             display: none;
         }
+
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 80px;
+            height: 80px;
+            background: #ff00cc;
+            color: #fff;
+            font-size: 2.5rem;
+            border-radius: 12px;
+            font-weight: 900;
+            box-shadow: 0 0 15px rgba(255, 0, 204, 0.6);
+            margin-top: 15px;
+            border: 3px solid #fff;
+        }
     </style>
 </head>
 
@@ -352,6 +368,9 @@
             <div id="ind-p2" class="buzzer-indicator">P2</div>
             <div id="ind-p3" class="buzzer-indicator">P3</div>
         </div>
+        
+        <div class="timer-display" id="host-timer">45</div>
+        
         <div id="puzzle-main-container">
             <div id="board"></div>
         </div>
@@ -638,6 +657,12 @@
 
             // --- 8. ĐỒNG BỘ TRẠNG THÁI BẤM CHUÔNG ---
             updateBuzzerUI(boardStateCache.buzzer_player);
+
+            // --- 9. ĐỒNG BỘ ĐỒNG HỒ ---
+            const timerDisplay = document.getElementById('host-timer');
+            if (timerDisplay && newData.timer !== undefined) {
+                timerDisplay.innerText = newData.timer || '0';
+            }
         }
 
         function updateBuzzerUI(buzzerPlayer) {
@@ -693,6 +718,21 @@
 
                 updateHostUI(newData);
             }).subscribe();
+
+            // Poll timer every second to ensure synchronization
+            setInterval(async () => {
+                try {
+                    const { data } = await db.from('wheel_game').select('timer').eq('id', 1).maybeSingle();
+                    if (data) {
+                        const timerDisplay = document.getElementById('host-timer');
+                        if (timerDisplay) {
+                            timerDisplay.innerText = String(data.timer || '0');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Timer poll error:', e);
+                }
+            }, 500);
         }
 
         window.onload = init;
