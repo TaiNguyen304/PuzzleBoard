@@ -348,6 +348,15 @@
                 </div>
             </div>
 
+            <div id="special-round-timer-panel" style="display:none; margin-top:15px; border: 1px dashed #666; padding: 10px;">
+                <p style="color:var(--neon); margin:0 0 10px 0; font-size:0.8rem;">ĐIỀU KHIỂN ĐỒNG HỒ VÒNG PHỤ & ĐB:</p>
+                <div class="quick-controls">
+                    <button style="background: blue; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="setTimer(30)">30 Giây</button>
+                    <button style="background: yellow; color: black; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="setTimer(10)">10 Giây</button>
+                    <button style="background: red; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="resetCountdown()">Reset Đồng Hồ</button>
+                </div>
+            </div>
+
             <button class="btn-reveal-all" onclick="revealAll()">HIỆN TOÀN BỘ Ô CHỮ (CÓ DẤU)</button>
             <button class="btn-reset" onclick="resetBoard()">RESET BẢNG TRỐNG</button>
         </div>
@@ -677,10 +686,12 @@
             const isQuick = ["Đoán Nhanh", "ĐNLH"].some(t => roundName.includes(t)) || roundName.includes('ĐB5.');
             const rnLower = roundName.toLowerCase();
             const isSpecialRound = rnLower.includes('vòng đặc biệt') || rnLower.includes('vòng phụ') || roundName.includes('ĐB');
+            const isSpecialRoundOnly = rnLower.includes('vòng đặc biệt') || rnLower.includes('vòng phụ');
 
             document.getElementById('quick-panel').style.display = isQuick ? 'block' : 'none';
             document.getElementById('btn-ngiah').style.display = isSpecialRound ? 'block' : 'none';
             document.getElementById('special-guess-panel').style.display = isSpecialRound ? 'block' : 'none';
+            document.getElementById('special-round-timer-panel').style.display = isSpecialRoundOnly ? 'block' : 'none';
 
             if (!hasPopup) {
                 if (/ĐB5\.[2-5]/.test(roundName)) {
@@ -932,7 +943,16 @@
         async function resetCountdown() {
             countdownValue = 45;
             document.getElementById('st-timer').innerText = countdownValue;
+            stopCountdown();
             await db.from('wheel_game').update({ timer: countdownValue }).eq('id', 1);
+        }
+
+        async function setTimer(seconds) {
+            countdownValue = seconds;
+            document.getElementById('st-timer').innerText = countdownValue;
+            stopCountdown();
+            await db.from('wheel_game').update({ timer: countdownValue }).eq('id', 1);
+            startCountdown();
         }
 
         async function revealNghia() {
