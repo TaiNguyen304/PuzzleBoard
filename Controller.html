@@ -547,21 +547,17 @@
             if (!layout || !Array.isArray(layout)) return "-";
             const words = [];
             let currentWord = "";
-            const isSeparatorCell = (value) => {
+            const isEmptyCell = (value) => {
                 if (value == null) return true;
                 const cell = String(value).trim();
-                if (cell === "") return true;
-                if (/^(null|undefined|nan)$/i.test(cell)) return true;
-                if (/^[-_.,;:/\\|]+$/.test(cell)) return true;
-                if (!/[0-9A-Za-zÀ-Ỵà-ỵ]/.test(cell)) return true;
-                return false;
+                return cell === "" || /^(null|undefined|nan)$/i.test(cell);
             };
 
             layout.forEach(row => {
                 if (!Array.isArray(row)) return;
                 for (let i = 0; i < row.length; i++) {
                     const char = row[i];
-                    if (!isSeparatorCell(char)) {
+                    if (!isEmptyCell(char)) {
                         currentWord += String(char).trim();
                     } else if (currentWord !== "") {
                         words.push(currentWord);
