@@ -563,6 +563,7 @@
                 }
 
                 updateScores(data);
+                applyLightStyles(data);
                 if ('buzzer_player' in data) lastBuzzerState = data.buzzer_player;
                 updateBuzzerUI(data);
                 
@@ -641,6 +642,7 @@
                 }
 
                 updateScores(newData);
+                applyLightStyles(newData);
                 updateBuzzerUI(newData);
 
                 // Update timer display
@@ -681,6 +683,41 @@
                 sound.play().catch(e => console.log("Yêu cầu tương tác để phát nhạc:", e));
             }
         }
+
+        function applyLightStyles(data) {
+            const lights = {
+                red: data.light_red || 'color',
+                yellow: data.light_yellow || 'color',
+                blue: data.light_blue || 'color'
+            };
+
+            // Định nghĩa màu chữ và màu nền nguyên bản cho trạng thái 'color'
+            const defaultStyles = {
+                red: { bg: '#ff0000', color: '#ffffff' },
+                yellow: { bg: '#ffff00', color: '#000000' },
+                blue: { bg: '#0000ff', color: '#ffffff' }
+            };
+
+            ['red', 'yellow', 'blue'].forEach(color => {
+                // Tìm tất cả các phần tử chứa hộp điểm của người chơi tương ứng (.score-box.red, v.v...)
+                const elements = document.querySelectorAll(`.score-box.${color}`);
+
+                elements.forEach(el => {
+                    if (lights[color] === 'black') {
+                        el.style.setProperty('background', '#000000', 'important');
+                        el.style.setProperty('color', '#ffffff', 'important');
+                    } else if (lights[color] === 'white') {
+                        el.style.setProperty('background', '#ffffff', 'important');
+                        el.style.setProperty('color', '#000000', 'important');
+                    } else {
+                        // Trả về trạng thái màu nguyên bản ban đầu
+                        el.style.setProperty('background', defaultStyles[color].bg, 'important');
+                        el.style.setProperty('color', defaultStyles[color].color, 'important');
+                    }
+                });
+            });
+        }
+
         // Gán sự kiện click nút chuông
         document.getElementById('buzzer-btn').addEventListener('click', pressBuzzer);
 

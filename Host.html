@@ -368,9 +368,9 @@
             <div id="ind-p2" class="buzzer-indicator">P2</div>
             <div id="ind-p3" class="buzzer-indicator">P3</div>
         </div>
-        
+
         <div class="timer-display" id="host-timer">45</div>
-        
+
         <div id="puzzle-main-container">
             <div id="board"></div>
         </div>
@@ -383,7 +383,7 @@
                 <div class="player-score-card red">
                     <p class="player-name">🔴 NC ĐỎ</p>
                     <div class="score-grid">
-                        <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-red-round">0</span></div>
+                        <div class="score-sub-box red"><label>Điểm Vòng</label><span id="host-red-round">0</span></div>
                         <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-red-total">0</span></div>
                     </div>
                 </div>
@@ -391,7 +391,8 @@
                 <div class="player-score-card yellow">
                     <p class="player-name">🟡 NC VÀNG</p>
                     <div class="score-grid">
-                        <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-yellow-round">0</span></div>
+                        <div class="score-sub-box yellow"><label>Điểm Vòng</label><span id="host-yellow-round">0</span>
+                        </div>
                         <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-yellow-total">0</span></div>
                     </div>
                 </div>
@@ -399,7 +400,8 @@
                 <div class="player-score-card blue">
                     <p class="player-name">🔵 NC XANH</p>
                     <div class="score-grid">
-                        <div class="score-sub-box"><label>Điểm Vòng</label><span id="host-blue-round">0</span></div>
+                        <div class="score-sub-box blue"><label>Điểm Vòng</label><span id="host-blue-round">0</span>
+                        </div>
                         <div class="score-sub-box"><label>Điểm Tổng</label><span id="host-blue-total">0</span></div>
                     </div>
                 </div>
@@ -424,8 +426,10 @@
         <div>
             <h3 class="panel-title">THỐNG KÊ Ô CHỮ</h3>
             <div class="pos-view-panel">
-                <p style="margin: 5px 0; font-size: 0.9rem;">Số ô sử dụng: <span id="host-used-cells-count" style="color: var(--neon);">0</span></p>
-                <p style="margin: 5px 0; font-size: 0.9rem;">Số ô có ký tự đặc biệt: <span id="host-special-char-cells-count" style="color: var(--neon);">0</span></p>
+                <p style="margin: 5px 0; font-size: 0.9rem;">Số ô sử dụng: <span id="host-used-cells-count"
+                        style="color: var(--neon);">0</span></p>
+                <p style="margin: 5px 0; font-size: 0.9rem;">Số ô có ký tự đặc biệt: <span
+                        id="host-special-char-cells-count" style="color: var(--neon);">0</span></p>
             </div>
         </div>
     </div>
@@ -586,7 +590,7 @@
 
         function updateHostUI(newData) {
             if (!newData) return;
-
+            applyLightStyles(newData);
             // --- 1. CẬP NHẬT CACHE DỮ LIỆU ---
             if (newData.puzzle_text !== undefined) boardStateCache.puzzle_text = newData.puzzle_text;
             if (newData.category !== undefined) boardStateCache.category = newData.category;
@@ -792,6 +796,46 @@
                 sound.currentTime = 0;
                 sound.play().catch(e => console.log("Yêu cầu tương tác để phát nhạc:", e));
             }
+        }
+
+        function applyLightStyles(data) {
+            if (!data) return;
+
+            const lights = {
+                red: data.light_red || 'color',
+                yellow: data.light_yellow || 'color',
+                blue: data.light_blue || 'color'
+            };
+
+            // Bảng màu chuẩn theo đúng CSS gốc (.red, .yellow, .blue) trong file Host.html của bạn
+            const defaultStyles = {
+                red: { bg: '#ff0000', color: '#ffffff' },
+                yellow: { bg: '#ffff00', color: '#000000' },
+                blue: { bg: '#0000ff', color: '#ffffff' }
+            };
+
+            ['red', 'yellow', 'blue'].forEach(color => {
+                // Tìm thẻ card cha của từng người chơi
+                const card = document.querySelector(`.player-score-card.${color}`);
+                if (!card) return;
+
+                // Tìm tất cả các ô score-sub-box bên trong card đó (gồm cả Điểm Vòng và Điểm Tổng)
+                const subBoxes = card.querySelectorAll('.score-sub-box');
+
+                subBoxes.forEach(el => {
+                    if (lights[color] === 'black') {
+                        el.style.setProperty('background', '#000000', 'important');
+                        el.style.setProperty('color', '#ffffff', 'important');
+                    } else if (lights[color] === 'white') {
+                        el.style.setProperty('background', '#ffffff', 'important');
+                        el.style.setProperty('color', '#000000', 'important');
+                    } else {
+                        // Trả về màu sậm nguyên bản của gameshow như thiết lập CSS ban đầu
+                        el.style.setProperty('background', defaultStyles[color].bg, 'important');
+                        el.style.setProperty('color', defaultStyles[color].color, 'important');
+                    }
+                });
+            });
         }
 
         // Bảo mật hệ thống Host View

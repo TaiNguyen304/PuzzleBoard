@@ -335,7 +335,7 @@
                     XÁC NHẬN
                 </button>
             </div>
-            
+
             <div id="quick-panel" style="display:none; margin-top:15px; border: 1px dashed #666; padding: 10px;">
                 <p style="color:var(--neon); margin:0 0 10px 0; font-size:0.8rem;">ĐIỀU KHIỂN ĐOÁN NHANH:</p>
                 <div class="quick-controls">
@@ -344,16 +344,21 @@
                     <button class="btn-quick" onclick="quickResume()">Tiếp tục hiện chữ</button>
                 </div>
                 <div class="quick-controls" style="margin-top: 5px;">
-                    <button style="background: red; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="resetCountdown()">Reset Đồng Hồ (45s)</button>
+                    <button style="background: red; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;"
+                        onclick="resetCountdown()">Reset Đồng Hồ (45s)</button>
                 </div>
             </div>
 
-            <div id="special-round-timer-panel" style="display:none; margin-top:15px; border: 1px dashed #666; padding: 10px;">
+            <div id="special-round-timer-panel"
+                style="display:none; margin-top:15px; border: 1px dashed #666; padding: 10px;">
                 <p style="color:var(--neon); margin:0 0 10px 0; font-size:0.8rem;">ĐIỀU KHIỂN ĐỒNG HỒ VÒNG PHỤ & ĐB:</p>
                 <div class="quick-controls">
-                    <button style="background: blue; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="setTimer(30)">30 Giây</button>
-                    <button style="background: yellow; color: black; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="setTimer(10)">10 Giây</button>
-                    <button style="background: red; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;" onclick="resetCountdown()">Reset Đồng Hồ</button>
+                    <button style="background: blue; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;"
+                        onclick="setTimer(30)">30 Giây</button>
+                    <button style="background: yellow; color: black; flex: 1; font-size: 0.75rem; padding: 8px 2px;"
+                        onclick="setTimer(10)">10 Giây</button>
+                    <button style="background: red; color: white; flex: 1; font-size: 0.75rem; padding: 8px 2px;"
+                        onclick="resetCountdown()">Reset Đồng Hồ</button>
                 </div>
             </div>
 
@@ -430,6 +435,17 @@
                     <button style="background:aqua; color:black; font-size: 10px; padding: 5px; flex: 1;"
                         onclick="subScore('red', 'round')">VÒNG -</button>
                 </div>
+                <div style="margin-top: 10px; display: flex; gap: 5px;">
+                    <button onclick="updatePlayerLight('red', 'color')"
+                        style="background: #ff0000; color: #fff; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        màu</button>
+                    <button onclick="updatePlayerLight('red', 'black')"
+                        style="background: #000000; color: #fff; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        đen</button>
+                    <button onclick="updatePlayerLight('red', 'white')"
+                        style="background: #ffffff; color: #000; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        trắng</button>
+                </div>
             </div>
 
             <div class="player-panel"
@@ -452,6 +468,17 @@
                     <button style="background:aqua; color:black; font-size: 10px; padding: 5px; flex: 1;"
                         onclick="subScore('yellow', 'round')">VÒNG -</button>
                 </div>
+                <div style="margin-top: 10px; display: flex; gap: 5px;">
+                    <button onclick="updatePlayerLight('yellow', 'color')"
+                        style="background: #ffff00; color: #000; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        màu</button>
+                    <button onclick="updatePlayerLight('yellow', 'black')"
+                        style="background: #000000; color: #fff; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        đen</button>
+                    <button onclick="updatePlayerLight('yellow', 'white')"
+                        style="background: #ffffff; color: #000; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        trắng</button>
+                </div>
             </div>
 
             <div class="player-panel"
@@ -473,6 +500,17 @@
                         onclick="addScore('blue', 'round')">VÒNG +</button>
                     <button style="background:aqua; color:black; font-size: 10px; padding: 5px; flex: 1;"
                         onclick="subScore('blue', 'round')">VÒNG -</button>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 5px;">
+                    <button onclick="updatePlayerLight('blue', 'color')"
+                        style="background: #0000ff; color: #fff; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        màu</button>
+                    <button onclick="updatePlayerLight('blue', 'black')"
+                        style="background: #000000; color: #fff; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        đen</button>
+                    <button onclick="updatePlayerLight('blue', 'white')"
+                        style="background: #ffffff; color: #000; flex: 1; padding: 5px; cursor: pointer; font-size: 12px;">Đèn
+                        trắng</button>
                 </div>
             </div>
 
@@ -537,7 +575,7 @@
                     : Number(lastBuzzerState);
                 if (n != null && !isNaN(n) && [1, 2, 3].includes(n) && n !== prev) {
                     playBuzzer();
-                    quickStop(); 
+                    quickStop();
                 }
                 lastBuzzerState = bp;
             }).subscribe();
@@ -835,9 +873,9 @@
         async function quickStart() {
             if (selectedRoundName && selectedRoundName.includes('ĐB5.')) {
                 // Tự động mở chuông và đặt màu viền/ô về màu tím khi bấm Bắt đầu hiện chữ
-                await db.from('wheel_game').update({ 
-                    revealed_positions: "", 
-                    marked_positions: "", 
+                await db.from('wheel_game').update({
+                    revealed_positions: "",
+                    marked_positions: "",
                     pending_positions: "",
                     revealed_chars: "",
                     is_buzzer_locked: false,
@@ -859,8 +897,8 @@
             }
         }
 
-        function quickStop() { 
-            if (quickInterval) clearInterval(quickInterval); 
+        function quickStop() {
+            if (quickInterval) clearInterval(quickInterval);
             stopCountdown();
         }
 
@@ -874,7 +912,7 @@
                     buzzer_player: "",
                     border_color: 'rgb(128,0,128)'
                 }).eq('id', 1);
-                
+
                 startCountdown();
             }
 
@@ -916,12 +954,12 @@
                 if (countdownValue > 0) {
                     countdownValue--;
                     document.getElementById('st-timer').innerText = countdownValue;
-                    
+
                     if (countdownValue === 0) {
                         quickStop();
-                        await db.from('wheel_game').update({ 
+                        await db.from('wheel_game').update({
                             timer: 0,
-                            is_buzzer_locked: true 
+                            is_buzzer_locked: true
                         }).eq('id', 1);
                     } else {
                         await db.from('wheel_game').update({ timer: countdownValue }).eq('id', 1);
@@ -1129,8 +1167,8 @@
 
             const { error } = await db.from('wheel_game').update({
                 buzzer_player: "",
-                is_buzzer_locked: currentLockStatus, 
-                border_color: 'rgb(128,0,128)'      
+                is_buzzer_locked: currentLockStatus,
+                border_color: 'rgb(128,0,128)'
             }).eq('id', 1);
 
             if (error) {
@@ -1262,6 +1300,21 @@
             }
         }
 
+        async function updatePlayerLight(playerColor, lightType) {
+            let updateData = {};
+            updateData[`light_${playerColor}`] = lightType;
+
+            const { error } = await db.from('wheel_game')
+                .update(updateData)
+                .eq('id', 1);
+
+            if (error) {
+                console.error("Lỗi cập nhật trạng thái đèn:", error);
+            } else {
+                console.log(`Đã cập nhật đèn ${playerColor} thành ${lightType}`);
+            }
+        }
+        
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (e.keyCode === 123) e.preventDefault();
