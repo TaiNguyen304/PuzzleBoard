@@ -437,7 +437,7 @@
     <audio id="buzzerSound" src="buzzer.mp3" preload="auto"></audio>
     <script>
         var SUPABASE_URL = 'https://tfdgtdderkaergijhucb.supabase.co';
-        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._BOLe4xH5ZuhfXfsdS63eY9N12wyomq58GG0toi1aIE';
+        var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmZGd0ZGRlcmthZXJnaWpodWNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0NjM5MzksImV4cCI6MjA5NDAzOTkzOX0._B[...]
         var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const VIETNAMESE_ALPHABET = "AĂÂBCDĐEÊGHIKLMNOÔƠPQRSTUƯVXY".split('');
@@ -826,13 +826,28 @@
                     if (lights[color] === 'black') {
                         el.style.setProperty('background', '#000000', 'important');
                         el.style.setProperty('color', '#ffffff', 'important');
+                        // Thay đổi màu label "ĐIỂM VÒNG" và "ĐIỂM TỔNG" thành trắng
+                        const label = el.querySelector('label');
+                        if (label) {
+                            label.style.setProperty('color', '#ffffff', 'important');
+                        }
                     } else if (lights[color] === 'white') {
                         el.style.setProperty('background', '#ffffff', 'important');
                         el.style.setProperty('color', '#000000', 'important');
+                        // Thay đổi màu label "ĐIỂM VÒNG" và "ĐIỂM TỔNG" thành đen
+                        const label = el.querySelector('label');
+                        if (label) {
+                            label.style.setProperty('color', '#000000', 'important');
+                        }
                     } else {
                         // Trả về màu sậm nguyên bản của gameshow như thiết lập CSS ban đầu
                         el.style.setProperty('background', defaultStyles[color].bg, 'important');
                         el.style.setProperty('color', defaultStyles[color].color, 'important');
+                        // Trả về màu label gốc
+                        const label = el.querySelector('label');
+                        if (label) {
+                            label.style.setProperty('color', defaultStyles[color].color, 'important');
+                        }
                     }
                 });
             });
