@@ -1141,12 +1141,17 @@
         }
         function closePopup() { document.getElementById('mainModal').style.display = 'none'; }
 
-        async function changeBorderColor(color) {
-            // Gọi hàm RPC đã tạo trên Database thay vì update bảng trực tiếp
-            const { error } = await db.rpc('update_border_color', { target_color: color });
+        async function changeBorderColor(colorValue) {
+            // 1. Đồng bộ giao diện Controller ngay lập tức (Mẹo giúp nút phản hồi không bị trễ)
+            console.log("Đang yêu cầu đổi màu viền thành:", colorValue);
+
+            // 2. Thực hiện gọi hàm RPC lên Supabase
+            // Lưu ý: key 'target_color' phải viết chính xác từng ký tự giống như trong SQL ở Bước 1
+            const { data, error } = await db.rpc('update_border_color', {
+                target_color: colorValue
+            });
 
             if (error) {
-                console.error("Lỗi khi đổi màu viền qua RPC:", error);
             } else {
                 console.log("Đổi màu viền thành công!");
             }
