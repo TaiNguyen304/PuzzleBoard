@@ -555,19 +555,42 @@
         }
 
         function countSpecialCharCells(layout) {
-            if (!layout || !Array.isArray(layout)) return 0;
+            // Kiểm tra bảo vệ đầu vào
+            if (!layout || typeof layout !== 'object') return 0;
+            
             let count = 0;
-            layout.forEach(row => {
-                if (!Array.isArray(row)) return;
-                row.forEach(cell => {
-                    if (cell != null && String(cell).trim() !== "" && !/^(null|undefined|nan)$/i.test(cell)) {
-                        const char = String(cell).trim();
-                        if (!/[A-Za-zÀ-Ỵà-ỵ0-9]/.test(char)) {
-                            count++;
+            try {
+                // Chuyển đổi linh hoạt hoặc ép về mảng nếu là Object dạng mảng
+                const rows = Array.isArray(layout) ? layout : Object.values(layout);
+                
+                rows.forEach(row => {
+                    if (!row || typeof row !== 'object') return;
+                    const cells = Array.isArray(row) ? row : Object.values(row);
+                    
+                    cells.forEach(cell => {
+                        if (cell !== null && cell !== undefined) {
+                            let cellStr = String(cell).trim();
+                            // Kiểm tra nếu ô không trống và không phải từ khóa hệ thống lỗi
+                            if (cellStr !== "" && !/^(null|undefined|nan)$/i.test(cellStr)) {
+                                
+                                // Chuẩn hóa chữ hoa và bóc tách toàn bộ dấu tiếng Việt
+                                let cleanChar = cellStr.toUpperCase()
+                                                       .normalize("NFD")
+                                                       .replace(/[\u0300-\u036f]/g, "")
+                                                       .replace(/Đ/g, "D");
+                                
+                                // Nếu KHÔNG chứa bất kỳ chữ cái A-Z hay số 0-9 nào -> Ký tự đặc biệt
+                                if (!/[A-Z0-9]/.test(cleanChar)) {
+                                    count++;
+                                }
+                            }
                         }
-                    }
+                    });
                 });
-            });
+            } catch (err) {
+                console.error("Lỗi khi đếm ký tự đặc biệt:", err);
+                return 0; // Trả về 0 thay vì làm sập toàn bộ script của Host
+            }
             return count;
         }
 
