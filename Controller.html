@@ -581,32 +581,68 @@
             }).subscribe();
         };
 
-        function getPuzzleStringWithSpaces(layout) {
+        function getPuzzleStringWithSpaces(layout, isTungHoanh = false) {
             if (!layout || !Array.isArray(layout)) return "-";
             const words = [];
             let currentWord = "";
+
             const isEmptyCell = (value) => {
                 if (value == null) return true;
                 const cell = String(value).trim();
                 return cell === "" || /^(null|undefined|nan)$/i.test(cell);
             };
 
-            layout.forEach(row => {
-                if (!Array.isArray(row)) return;
-                for (let i = 0; i < row.length; i++) {
-                    const char = row[i];
-                    if (!isEmptyCell(char)) {
-                        currentWord += String(char).trim();
-                    } else if (currentWord !== "") {
-                        words.push(currentWord);
-                        currentWord = "";
-                    }
-                }
-                if (currentWord !== "") {
-                    words.push(currentWord);
+            if (isTungHoanh) {
+                // 1. Quét hàng ngang
+                layout.forEach(row => {
+                    if (!Array.isArray(row)) return;
                     currentWord = "";
+                    for (let i = 0; i < row.length; i++) {
+                        const char = row[i];
+                        if (!isEmptyCell(char)) {
+                            currentWord += String(char).trim();
+                        } else {
+                            // Chỉ lấy các từ có >= 2 ký tự để tránh các điểm giao cắt đơn lẻ
+                            if (currentWord.length > 1) words.push(currentWord);
+                            currentWord = "";
+                        }
+                    }
+                    if (currentWord.length > 1) words.push(currentWord);
+                });
+
+                // 2. Quét cột dọc
+                const numCols = Math.max(...layout.map(row => Array.isArray(row) ? row.length : 0));
+                for (let c = 0; c < numCols; c++) {
+                    currentWord = "";
+                    for (let r = 0; r < layout.length; r++) {
+                        if (layout[r] && !isEmptyCell(layout[r][c])) {
+                            currentWord += String(layout[r][c]).trim();
+                        } else {
+                            if (currentWord.length > 1) words.push(currentWord);
+                            currentWord = "";
+                        }
+                    }
+                    if (currentWord.length > 1) words.push(currentWord);
                 }
-            });
+            } else {
+                // Đọc bình thường (trái sang phải, trên xuống dưới)
+                layout.forEach(row => {
+                    if (!Array.isArray(row)) return;
+                    currentWord = "";
+                    for (let i = 0; i < row.length; i++) {
+                        const char = row[i];
+                        if (!isEmptyCell(char)) {
+                            currentWord += String(char).trim();
+                        } else if (currentWord !== "") {
+                            words.push(currentWord);
+                            currentWord = "";
+                        }
+                    }
+                    if (currentWord !== "") {
+                        words.push(currentWord);
+                    }
+                });
+            }
 
             return words.join(" ") || "-";
         }
@@ -634,8 +670,13 @@
                 }
 
                 document.getElementById('st-cat').innerText = data.category || "-";
+
+                // KIỂM TRA CHỦ ĐỀ TUNG HOÀNH KHI LOAD GAME
+                const catUpper = String(data.category || "").toUpperCase();
+                const isTungHoanh = catUpper.includes('TUNG HOÀNH') || catUpper.includes('TUNG HOANH');
+
                 document.getElementById('st-puz').innerText = currentLayout
-                    ? getPuzzleStringWithSpaces(currentLayout)
+                    ? getPuzzleStringWithSpaces(currentLayout, isTungHoanh)
                     : (currentPuzzleRaw || "-");
 
                 updateScoreUI();
@@ -769,7 +810,11 @@
 
         async function sendToBoard(cat, layout) {
             currentLayout = layout;
-            const rawText = getPuzzleStringWithSpaces(layout);
+
+            // KIỂM TRA TÊN CHỦ ĐỀ TRƯỚC KHI TRÍCH XUẤT CHỮ
+            const catUpper = String(cat || "").toUpperCase();
+            const isTungHoanh = catUpper.includes('TUNG HOÀNH') || catUpper.includes('TUNG HOANH');
+            const rawText = getPuzzleStringWithSpaces(layout, isTungHoanh);
 
             currentPuzzleRaw = rawText;
             usedChars = [];
@@ -1314,7 +1359,7 @@
                 console.log(`Đã cập nhật đèn ${playerColor} thành ${lightType}`);
             }
         }
-        
+
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
             if (e.keyCode === 123) e.preventDefault();
