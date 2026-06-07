@@ -424,6 +424,10 @@
                     <div id="disp-red-round"
                         style="flex: 1; padding: 5px; text-align: center; background:red; color:white;">0</div>
                 </div>
+                <div style="margin-bottom: 5px; font-size: 11px; color: #fff;">
+                    <input type="checkbox" id="chk-red-last-spin" style="cursor: pointer;">
+                    <label for="chk-red-last-spin" style="cursor: pointer;">Lượt quay cuối cùng</label>
+                </div>
                 <input type="text" id="input-red"
                     style="width:100%; padding:8px; background:#000; color:#fff; border:1px solid #555; margin-bottom:5px;"
                     placeholder="Nhập điểm..." oninput="formatInput(this)">
@@ -457,6 +461,10 @@
                     <div id="disp-yellow-round"
                         style="flex: 1; padding: 5px; text-align: center; background:yellow; color:black;">0</div>
                 </div>
+                <div style="margin-bottom: 5px; font-size: 11px; color: #fff;">
+                    <input type="checkbox" id="chk-yellow-last-spin" style="cursor: pointer;">
+                    <label for="chk-yellow-last-spin" style="cursor: pointer;">Lượt quay cuối cùng</label>
+                </div>
                 <input type="text" id="input-yellow"
                     style="width:100%; padding:8px; background:#000; color:#fff; border:1px solid #555; margin-bottom:5px;"
                     placeholder="Nhập điểm..." oninput="formatInput(this)">
@@ -489,6 +497,10 @@
                         style="flex: 1; padding: 5px; text-align: center; background:blue; color:white;">0</div>
                     <div id="disp-blue-round"
                         style="flex: 1; padding: 5px; text-align: center; background:blue; color:white;">0</div>
+                </div>
+                <div style="margin-bottom: 5px; font-size: 11px; color: #fff;">
+                    <input type="checkbox" id="chk-blue-last-spin" style="cursor: pointer;">
+                    <label for="chk-blue-last-spin" style="cursor: pointer;">Lượt quay cuối cùng</label>
                 </div>
                 <input type="text" id="input-blue"
                     style="width:100%; padding:8px; background:#000; color:#fff; border:1px solid #555; margin-bottom:5px;"
@@ -1228,7 +1240,15 @@
         async function addScore(p, t) {
             const val = parseInt(document.getElementById(`input-${p}`).value.replace(/\./g, "")) || 0;
             scores[p][t] += val;
-            document.getElementById(`input-${p}`).value = "";
+
+            // Lấy trạng thái của ô tích chọn "Lượt quay cuối cùng" tương ứng với người chơi
+            const isLastSpin = document.getElementById(`chk-${p}-last-spin`)?.checked;
+
+            // Nếu là cộng điểm VÒNG và có TÍCH CHỌN lượt quay cuối cùng thì KHÔNG xóa textbox
+            if (!(t === 'round' && isLastSpin)) {
+                document.getElementById(`input-${p}`).value = "";
+            }
+
             await syncScores();
         }
         async function subScore(p, t) {
